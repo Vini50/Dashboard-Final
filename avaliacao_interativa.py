@@ -51,11 +51,7 @@ pipeline.fit(X_train_resampled, y_train_resampled)
 # Predição
 y_pred = pipeline.predict(X_test)
 
-# Exibir a acurácia
-accuracy = accuracy_score(y_test, y_pred)
-print(f'Acurácia do modelo: {accuracy:.4f}')
-
-#@title 4.3. Utilização de técnica para identificação dos melhores hiperparâmetros
+#Utilização de técnica para identificação dos melhores hiperparâmetros
 # Ajuste de Hiperparâmetros usando Grid Search
 param_grid = {
     'classifier__max_depth': [3, 4, 5, 6, None],
@@ -67,11 +63,7 @@ param_grid = {
 grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='roc_auc', n_jobs=-1)
 grid_search.fit(X_train_resampled, y_train_resampled)
 
-# Melhores hiperparâmetros
-print("\nMelhores hiperparâmetros encontrados:")
-print(grid_search.best_params_)
-
-#@title 4.4. Treinamento do modelo com os melhores hiperparâmetros
+#Treinamento do modelo com os melhores hiperparâmetros
 final_model = ImbPipeline([
     ('smote', SMOTE(random_state=42)),  # Usando SMOTE para balanceamento
     ('classifier', DecisionTreeClassifier(
