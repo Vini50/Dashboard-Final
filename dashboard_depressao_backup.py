@@ -827,36 +827,36 @@ elif pagina == "📝 Teste Pessoal":
         
         with col1:
             sono = st.radio("Teve problemas para dormir?", 
-                          ["Nenhum dia", "Alguns dias", "Mais da metade", "Quase todos"], 
+                          ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                           index=0)
             
             interesse = st.radio("Perdeu interesse pelas coisas?", 
-                               ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                               ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                                index=0)
             
             alimentacao = st.radio("Teve mudanças no apetite?", 
-                                 ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                                 ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                                  index=0)
             
             cansaco = st.radio("Sentiu-se cansado sem energia?", 
-                              ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                              ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                               index=0)
         
         with col2:
             concentracao = st.radio("Teve dificuldade de concentração?", 
-                                  ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                                  ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                                   index=0)
             
             deprimido = st.radio("Sentiu-se deprimido ou sem perspectiva?", 
-                               ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                               ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                                index=0)
             
             fracasso = st.radio("Sentiu-se um fracasso?", 
-                              ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                              ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                               index=0)
             
             suicidio = st.radio("Teve pensamentos sobre morte?", 
-                              ["Nenhum dia", "Alguns dias", "More than half", "Almost every"], 
+                              ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                               index=0)
         
         submitted = st.form_submit_button("Avaliar", type="primary")
