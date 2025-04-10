@@ -334,12 +334,12 @@ elif pagina == "📊 Fatores Associados":
     with col2:
         st.markdown("**Avaliação Geral de Saúde**")
         avaliacao = df_depressao['Avaliacao_Geral_Saude'].value_counts().reset_index()
-        avaliacao['index'] = avaliacao['index'].map({
+        avaliacao['Avaliacao_Geral_Saude'] = avaliacao['Avaliacao_Geral_Saude'].map({
             1: 'Muito Boa', 2: 'Boa', 3: 'Regular', 4: 'Ruim', 5: 'Muito Ruim'
         })
         fig_av = px.pie(
             avaliacao,
-            names='index',
+            names='Avaliacao_Geral_Saude',
             values='count',
             hole=0.4
         )
@@ -363,7 +363,7 @@ elif pagina == "💊 Tratamento e Saúde":
         
         fig_med = px.pie(
             medicamento,
-            names='index',
+            names='resposta',
             values='count',
             color='index',
             color_discrete_map={'Sim': '#27ae60', 'Não': '#e74c3c'},

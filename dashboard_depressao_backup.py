@@ -708,13 +708,13 @@ elif pagina == "📊 Fatores Associados":
     with col_fatores2:
         st.markdown("#### Avaliação Geral de Saúde")
         avaliacao = df_depressao['Avaliacao_Geral_Saude'].value_counts().reset_index()
-        avaliacao['index'] = avaliacao['index'].map({
+        avaliacao['Avaliacao_Geral_Saude'] = avaliacao['Avaliacao_Geral_Saude'].map({
             1: 'Muito Boa', 2: 'Boa', 3: 'Regular', 4: 'Ruim', 5: 'Muito Ruim'
         })
         
         fig_av = px.pie(
             avaliacao,
-            names='index',
+            names='Avaliacao_Geral_Saude',
             values='count',
             hole=0.4,
             color_discrete_sequence=px.colors.sequential.Reds_r
@@ -760,14 +760,15 @@ elif pagina == "💊 Tratamento e Saúde":
     with col_trat1:
         st.markdown("### 💊 Uso de Medicamentos")
         medicamento = df_depressao['Medicamento_Depressao'].value_counts().reset_index()
-        medicamento['index'] = medicamento['index'].map({1: 'Sim', 2: 'Não'})
+        medicamento.columns = ['index', 'count']  # Renomeando as colunas para garantir consistência
+        medicamento['index'] = medicamento['index'].map({1: 'Sim', 2: 'Não', 3: 'Não sabe/não respondeu'}).fillna('Ignorado')
         
         fig_med = px.pie(
             medicamento,
             names='index',
             values='count',
             color='index',
-            color_discrete_map={'Sim': '#27ae60', 'Não': '#e74c3c'},
+            color_discrete_map={'Sim': '#27ae60', 'Não': '#e74c3c', 'Não sabe/não respondeu': '#f39c12', 'Ignorado': '#95a5a6'},
             hole=0.4
         )
         
@@ -784,14 +785,19 @@ elif pagina == "💊 Tratamento e Saúde":
         
         st.plotly_chart(fig_med, use_container_width=True)
         
-        st.markdown("### 🕒 Padrão de Uso Recente")
-        uso_recente = df_depressao['Uso_Medicamento_Depressao_Ultimas_Semanas'].value_counts().reset_index()
-        uso_recente['index'] = uso_recente['index'].map({
-            1: 'Usa todos', 2: 'Usa alguns', 3: 'Não usa', 4: 'Não sabe'
-        })
+    with col_trat2:
+        st.markdown("### 🏥 Frequência de Visitas Médicas")
+        visitas = df_depressao['Frequencia_Visita_Medico_Depressao'].value_counts().reset_index()
+        visitas.columns = ['index', 'count']
+        visitas['index'] = visitas['index'].map({
+            1: 'Sim, regularmente',
+            2: 'Não, só quando tem problema',
+            3: 'Nunca vai',
+            9: 'Ignorado'
+        }).fillna('Não aplicável')
         
-        fig_ur = px.bar(
-            uso_recente,
+        fig_vis = px.bar(
+            visitas,
             x='index',
             y='count',
             color='index',
@@ -799,33 +805,78 @@ elif pagina == "💊 Tratamento e Saúde":
             text='count'
         )
         
-        fig_ur.update_traces(
+        fig_vis.update_traces(
             marker_line=dict(color='#ffffff', width=1),
             textposition='outside'
         )
         
-        fig_ur.update_layout(
+        fig_vis.update_layout(
             showlegend=False,
-            xaxis_title="Padrão de Uso",
+            xaxis_title="Frequência de Visitas",
             yaxis_title="Número de Pessoas",
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)'
         )
         
-        st.plotly_chart(fig_ur, use_container_width=True)
+        st.plotly_chart(fig_vis, use_container_width=True)
+    
+    st.markdown("### 🕒 Padrão de Uso Recente de Medicamentos")
+    uso_recente = df_depressao['Uso_Medicamento_Depressao_Ultimas_Semanas'].value_counts().reset_index()
+    uso_recente.columns = ['index', 'count']
+    uso_recente['index'] = uso_recente['index'].map({
+        1: 'Usa todos',
+        2: 'Usa alguns', 
+        3: 'Não usa', 
+        4: 'Não sabe/não respondeu'
+    }).fillna('Ignorado')
+    
+    fig_ur = px.bar(
+        uso_recente,
+        x='index',
+        y='count',
+        color='index',
+        color_discrete_sequence=px.colors.qualitative.Pastel,
+        text='count'
+    )
+    
+    fig_ur.update_traces(
+        marker_line=dict(color='#ffffff', width=1),
+        textposition='outside'
+    )
+    
+    fig_ur.update_layout(
+        showlegend=False,
+        xaxis_title="Padrão de Uso",
+        yaxis_title="Número de Pessoas",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+    
+    st.plotly_chart(fig_ur, use_container_width=True)
     
     with col_trat2:
         st.markdown("### 🏥 Frequência de Visitas Médicas")
-        visitas = df_depressao['Frequencia_Visita_Medico_Depressao'].value_counts().reset_index()
-        visitas['index'] = visitas['index'].map({
-            1: 'Regularmente', 2: 'Só quando precisa', 3: 'Nunca vai'
-        })
         
+        # 1. Primeiro verifique o nome real da coluna
+        visitas = df_depressao['Frequencia_Visita_Medico_Depressao'].value_counts().reset_index()
+        print("Colunas no DataFrame visitas:", visitas.columns.tolist())  # Isso mostrará os nomes reais
+        
+        # 2. Use o nome correto da coluna (substitua 'nome_da_coluna' pelo que aparecer no print)
+        nome_da_coluna = visitas.columns[0]  # Pega automaticamente o nome da primeira coluna
+        
+        visitas['Frequencia'] = visitas[nome_da_coluna].map({
+            1: 'Regularmente', 
+            2: 'Só quando precisa', 
+            3: 'Nunca vai',
+            9: 'Ignorado'
+        }).fillna('Não informado')
+        
+        # 3. Atualize o gráfico para usar a nova coluna
         fig_vis = px.bar(
             visitas,
-            x='index',
+            x='Frequencia',  # Agora usando a coluna renomeada
             y='count',
-            color='index',
+            color='Frequencia',
             color_discrete_sequence=px.colors.sequential.Blues_r,
             text='count',
             title="Frequência de Visitas ao Médico"
@@ -848,7 +899,8 @@ elif pagina == "💊 Tratamento e Saúde":
         
         st.markdown("### ❓ Motivos para Não Visitar Regularmente")
         motivos = df_depressao['Motivo_Nao_Visitar_Medico_Depressao'].value_counts().reset_index()
-        motivos['index'] = motivos['index'].map({
+        nome_da_coluna = motivos.columns[0]
+        motivos['Motivo'] = motivos[nome_da_coluna].map({
             1: 'Não está mais deprimido',
             2: 'Serviço distante',
             3: 'Falta de ânimo',
@@ -863,7 +915,7 @@ elif pagina == "💊 Tratamento e Saúde":
         fig_mot = px.bar(
             motivos.sort_values('count', ascending=False).head(5),
             x='count',
-            y='index',
+            y='Motivo',
             orientation='h',
             color='count',
             color_continuous_scale='Blues',
