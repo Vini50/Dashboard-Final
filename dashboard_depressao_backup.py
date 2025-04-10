@@ -5,6 +5,33 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import joblib
 from collections import Counter
+# Forçar tema claro e configurar cores padrão
+# Configuração universal para corrigir gráficos brancos
+import plotly.io as pio
+
+
+# Configuração do layout padrão para todos os gráficos
+plotly_layout = {
+    'paper_bgcolor': '#1c1e22',
+    'plot_bgcolor': '#1c1e22',
+    'font': {'color': 'white', 'family': "Arial"},
+    'xaxis': {
+        'gridcolor': '#555',
+        'linecolor': '#888',
+        'title_font': {'size': 12, 'color': 'white'},
+        'tickfont': {'color': 'white'}
+    },
+    'yaxis': {
+        'gridcolor': '#555',
+        'linecolor': '#888',
+        'title_font': {'size': 12, 'color': 'white'},
+        'tickfont': {'color': 'white'}
+    },
+    'legend': {
+        'font': {'size': 10, 'color': 'white'},
+        'bgcolor': 'rgba(0,0,0,0)'
+    }
+}
 
 # Configurações iniciais
 st.set_page_config(
@@ -17,123 +44,192 @@ st.set_page_config(
 # CSS personalizado para melhorar a estética
 st.markdown("""
 <style>
-    /* Estilos gerais */
-    .main {
-        background-color: #f8f9fa;
-    }
-    
-    /* Estilo dos cards de métricas */
-    .stMetric {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        border-left: 4px solid #3498db;
-        transition: transform 0.3s ease;
-    }
-    
-    .stMetric:hover {
-        transform: translateY(-5px);
-    }
-    
-    /* Estilo dos gráficos */
-    .stPlotlyChart {
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        background-color: white;
-        padding: 15px;
-    }
-    
-    /* Cabeçalhos */
-    h1 {
-        color: #2c3e50;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 10px;
-    }
-    
-    h2 {
-        color: #2c3e50;
-        margin-top: 1.5em;
-    }
-    
-    h3 {
-        color: #2c3e50;
-    }
-    
-    /* Sidebar */
-    .css-1v3fvcr {
-        background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
-        color: white;
-    }
-    
-    /* Botões */
-    .stButton>button {
-        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 24px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-    }
-    
-    /* Alertas */
-    .stAlert {
-        border-radius: 12px;
-    }
+/* --- FUNDO E TEXTO GERAL --- */
+.main {
+    background-color: #0f1116 !important;
+    color: white !important;
+}
+
+/* --- GRÁFICOS PLOTLY --- */
+.stPlotlyChart {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    background-color: #0f1116 !important;
+    padding: 15px;
+}
+
+/* Corrigir texto dos gráficos */
+.js-plotly-plot .plotly .gtitle,
+.js-plotly-plot .plotly .xtitle,
+.js-plotly-plot .plotly .ytitle,
+.js-plotly-plot .plotly .legendtext,
+.js-plotly-plot .plotly .hovertext {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+}
+
+.js-plotly-plot .plotly .gridlayer .xgrid,
+.js-plotly-plot .plotly .gridlayer .ygrid {
+    stroke: #e0e0e0 !important;
+}
+
+.js-plotly-plot .plotly .cartesianlayer .axis .tick text {
+    fill: #ffffff !important;
+}
+
+/* Tooltip dos gráficos */
+.js-plotly-plot .plotly .hoverlayer .hovertext {
+    background-color: #0f1116 !important;
+    border: 1px solid #e0e0e0 !important;
+    color: #ffffff !important;
+}
+
+/* --- CARDS PERSONALIZADOS --- */
+.card-custom {
+    background: linear-gradient(135deg, #1e1e1e 0%, #2c2c2c 100%);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease;
+    color: white !important;
+    border: none;
+    margin-bottom: 15px;
+}
+
+.card-custom:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+.card-title {
+    color: #3498db;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.card-description {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9em;
+}
+
+/* --- METRIC CARDS DO STREAMLIT --- */
+.stMetric {
+    background: linear-gradient(135deg, #1e1e1e 0%, #2c2c2c 100%);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    border-left: 4px solid #3498db;
+    transition: transform 0.3s ease;
+    color: #ffffff !important;
+}
+.stMetric label, .stMetric div {
+    color: #ffffff !important;
+}
+.stMetric:hover {
+    transform: translateY(-5px);
+}
+
+/* --- BOTÕES --- */
+.stButton>button {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+/* --- SIDEBAR --- */
+.css-1v3fvcr {
+    background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
+    color: #0f1116;
+}
+
+/* --- CABEÇALHOS --- */
+h1 {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+h2, h3 {
+    color: #2c3e50;
+}
+
+/* --- ALERTAS --- */
+.stAlert {
+    border-radius: 12px;
+}
 </style>
 """, unsafe_allow_html=True)
+
+
 
 # Função para carregar dados
 @st.cache_data
 def load_data():
-    caminho_arquivo = r"pns2019_IA.csv" 
-    df = pd.read_csv(caminho_arquivo, sep=';', encoding='utf-8')
+    try:
+        caminho_arquivo = r"pns2019_IA.csv" 
+        df = pd.read_csv(caminho_arquivo, sep=';', encoding='utf-8')
+        
+        if df.empty:
+            st.error("O arquivo CSV está vazio!")
+            return pd.DataFrame()
+            
+        # Verifique se as colunas necessárias existem
+        colunas_necessarias = ['Unidade_Federacao', 'Diagnostico_Depressao', 'Sexo', 'Idade_Morador']
+        for col in colunas_necessarias:
+            if col not in df.columns:
+                st.error(f"Coluna '{col}' não encontrada no arquivo CSV!")
+                return pd.DataFrame()
     
-    # Mapeamentos
-    estados = {
-        11: 'Rondônia', 12: 'Acre', 13: 'Amazonas', 14: 'Roraima', 15: 'Pará',
-        16: 'Amapá', 17: 'Tocantins', 21: 'Maranhão', 22: 'Piauí', 23: 'Ceará',
-        24: 'Rio Grande do Norte', 25: 'Paraíba', 26: 'Pernambuco', 27: 'Alagoas',
-        28: 'Sergipe', 29: 'Bahia', 31: 'Minas Gerais', 32: 'Espírito Santo',
-        33: 'Rio de Janeiro', 35: 'São Paulo', 41: 'Paraná', 42: 'Santa Catarina',
-        43: 'Rio Grande do Sul', 50: 'Mato Grosso do Sul', 51: 'Mato Grosso',
-        52: 'Goiás', 53: 'Distrito Federal'
-    }
-    
-    estado_civil_map = {
-        1: 'Casado(a)',
-        2: 'Divorciado(a)/Separado(a)',
-        3: 'Viúvo(a)',
-        4: 'Solteiro(a)',
-    }
+        # Mapeamentos
+        estados = {
+            11: 'Rondônia', 12: 'Acre', 13: 'Amazonas', 14: 'Roraima', 15: 'Pará',
+            16: 'Amapá', 17: 'Tocantins', 21: 'Maranhão', 22: 'Piauí', 23: 'Ceará',
+            24: 'Rio Grande do Norte', 25: 'Paraíba', 26: 'Pernambuco', 27: 'Alagoas',
+            28: 'Sergipe', 29: 'Bahia', 31: 'Minas Gerais', 32: 'Espírito Santo',
+            33: 'Rio de Janeiro', 35: 'São Paulo', 41: 'Paraná', 42: 'Santa Catarina',
+            43: 'Rio Grande do Sul', 50: 'Mato Grosso do Sul', 51: 'Mato Grosso',
+            52: 'Goiás', 53: 'Distrito Federal'
+        }
+        
+        estado_civil_map = {
+            1: 'Casado(a)',
+            2: 'Divorciado(a)/Separado(a)',
+            3: 'Viúvo(a)',
+            4: 'Solteiro(a)',
+        }
 
-    raca_map = {
-        1: 'Branca',
-        2: 'Preta',
-        3: 'Amarela',
-        4: 'Parda',
-        5: 'Indígena',
-    }
+        raca_map = {
+            1: 'Branca',
+            2: 'Preta',
+            3: 'Amarela',
+            4: 'Parda',
+            5: 'Indígena',
+        }
 
-    # Aplicar transformações
-    df['Unidade_Federacao'] = df['Unidade_Federacao'].map(estados)
-    df['Estado_Civil'] = df['Estado_Civil'].map(estado_civil_map)
-    df['Cor_Raca'] = df['Cor_Raca'].map(raca_map)
-    df['Sexo'] = df['Sexo'].map({1: 'Masculino', 2: 'Feminino'})
-    df['Diagnostico_Depressao'] = df['Diagnostico_Depressao'].map({1: 'Sim', 2: 'Não'})
-    
-    # Criar faixas de horas de trabalho
-    bins = [0, 20, 40, 60, 80, 100, 120]
-    labels = ['0-20h', '21-40h', '41-60h', '61-80h', '81-100h', '101-120h']
-    df['Faixa_Horas_Trabalho'] = pd.cut(df['Horas_Trabalho_Semana'], bins=bins, labels=labels, right=False)
-    
-    return df
+        # Aplicar transformações
+        df['Unidade_Federacao'] = df['Unidade_Federacao'].map(estados)
+        df['Estado_Civil'] = df['Estado_Civil'].map(estado_civil_map)
+        df['Cor_Raca'] = df['Cor_Raca'].map(raca_map)
+        df['Sexo'] = df['Sexo'].map({1: 'Masculino', 2: 'Feminino'})
+        df['Diagnostico_Depressao'] = df['Diagnostico_Depressao'].map({1: 'Sim', 2: 'Não'})
+        
+        # Criar faixas de horas de trabalho
+        bins = [0, 20, 40, 60, 80, 100, 120]
+        labels = ['0-20h', '21-40h', '41-60h', '61-80h', '81-100h', '101-120h']
+        df['Faixa_Horas_Trabalho'] = pd.cut(df['Horas_Trabalho_Semana'], bins=bins, labels=labels, right=False)
+        
+        return df
+    except Exception as e:
+            st.error(f"Erro ao carregar dados: {str(e)}")
+            return pd.DataFrame()
 
 # Carregar dados
 df = load_data()
@@ -160,7 +256,7 @@ if pagina == "🏠 Introdução":
                 border-radius: 12px; 
                 color: white;
                 margin-bottom: 30px;">
-        <h1 style="color: white; margin: 0;">🧠 Dashboard: Saúde Mental no Brasil</h1>
+        <h1 style="color: #ffffff; margin: 0;">🧠 Dashboard: Saúde Mental no Brasil</h1>
         <p style="font-size: 1.1em;">Análise dos dados da PNS 2019 sobre depressão na população brasileira</p>
     </div>
     """, unsafe_allow_html=True)
@@ -210,7 +306,7 @@ if pagina == "🏠 Introdução":
     
     with features[0]:
         st.markdown("""
-        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
+        <div style="background: black; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
             <h3 style="color: #3498db;">🌎 Panorama Nacional</h3>
             <p>Distribuição geográfica dos casos por estados e regiões</p>
         </div>
@@ -218,7 +314,7 @@ if pagina == "🏠 Introdução":
     
     with features[1]:
         st.markdown("""
-        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
+        <div style="background: black; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
             <h3 style="color: #3498db;">📊 Fatores Associados</h3>
             <p>Análise de hábitos e condições relacionadas à depressão</p>
         </div>
@@ -226,7 +322,7 @@ if pagina == "🏠 Introdução":
     
     with features[2]:
         st.markdown("""
-        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
+        <div style="background: black; padding: 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 200px;">
             <h3 style="color: #3498db;">📝 Teste Pessoal</h3>
             <p>Avaliação preliminar baseada nos critérios da pesquisa</p>
         </div>
@@ -518,8 +614,8 @@ elif pagina == "📊 Fatores Associados":
         st.metric("Desvio Padrão", f"{std_horas:.1f} horas")
         
         st.markdown("""
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
-            <p style="font-size: 0.9em;">A Organização Mundial da Saúde recomenda trabalhar no máximo 40 horas semanais para manter uma boa saúde mental.</p>
+        <div style="background: #1c1e22; padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <p style="font-size: 1.2em;">A Organização Mundial da Saúde recomenda trabalhar no máximo 40 horas semanais para manter uma boa saúde mental.</p>
         </div>
         """, unsafe_allow_html=True)
     
