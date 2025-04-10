@@ -712,73 +712,75 @@ elif pagina == "📊 Fatores Associados":
         st.plotly_chart(fig_ec, use_container_width=True)
     
     with col_fatores2:
-         st.markdown("### 🏋️ Relação entre Saúde Mental e Prática de Atividade Física")
-    
-    try:
-        # Verificar nomes exatos das colunas no seu DataFrame
-        cols_esporte = [col for col in df_depressao.columns if 'Esporte' in col]
-        st.write(f"Colunas de atividade física disponíveis: {cols_esporte}")  # Debug
+
+        try:
+            # Verificar nomes exatos das colunas no seu DataFrame
+            cols_esporte = [col for col in df_depressao.columns if 'Esporte' in col]
+
+            # Usar a coluna disponível (corrigindo o nome)
+            coluna_esporte = 'Frequencia_Esporte_Seman'  # Nome corrigido conforme seu DF
+            
+            if coluna_esporte in df_depressao.columns:
+                # Criar DataFrame para análise
+                df_atividade = df_depressao[['Avaliacao_Geral_Saude', coluna_esporte]].copy()
+                
+                # Mapear valores para labels mais amigáveis
+                avaliacao_map = {
+                    1: 'Muito Boa',
+                    2: 'Boa',
+                    3: 'Regular',
+                    4: 'Ruim',
+                    5: 'Muito Ruim'
+                }
+                
+                esporte_map = {
+                    1: 'Pratica',
+                    2: 'Não Pratica',
+                    9: 'Ignorado'
+                }
+                
+                df_atividade['Avaliacao_Saude'] = df_atividade['Avaliacao_Geral_Saude'].map(avaliacao_map)
+                df_atividade['Pratica_Esporte'] = df_atividade[coluna_esporte].map(esporte_map)
+                
+                # Criar gráfico
+                fig = px.histogram(
+                    df_atividade.dropna(),
+                    x='Avaliacao_Saude',
+                    color='Pratica_Esporte',
+                    barmode='group',
+                    category_orders={
+                        'Avaliacao_Saude': ['Muito Boa', 'Boa', 'Regular', 'Ruim', 'Muito Ruim'],
+                        'Pratica_Esporte': ['Pratica', 'Não Pratica', 'Ignorado']
+                    },
+                    color_discrete_map={
+                        'Pratica': '#27ae60',  # Verde
+                        'Não Pratica': '#e74c3c',  # Vermelho
+                        'Ignorado': '#95a5a6'  # Cinza
+                    },
+                    labels={
+                        'Avaliacao_Saude': 'Autoavaliação de Saúde',
+                        'count': 'Número de Pessoas',
+                        'Pratica_Esporte': 'Prática Esportiva'
+                    },
+                    height=450
+                )
+                
+                fig.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    legend_title_text='Prática de Esporte',
+                    hovermode='x unified'
+                )
+                st.markdown("""
+        ### 🏋️ Relação entre Saúde Mental e Prática de Atividade Física
+        """)
+                st.plotly_chart(fig, use_container_width=True)
+                
+
+        except Exception as e:
+            st.error(f"Erro ao criar gráfico: {str(e)}")
+            st.write("Dados usados:", df_atividade.head() if 'df_atividade' in locals() else "DataFrame não criado")
         
-        # Usar a coluna disponível (corrigindo o nome)
-        coluna_esporte = 'Frequencia_Esporte_Seman'  # Nome corrigido conforme seu DF
-        
-        if coluna_esporte in df_depressao.columns:
-            # Criar DataFrame para análise
-            df_atividade = df_depressao[['Avaliacao_Geral_Saude', coluna_esporte]].copy()
-            
-            # Mapear valores para labels mais amigáveis
-            avaliacao_map = {
-                1: 'Muito Boa',
-                2: 'Boa',
-                3: 'Regular',
-                4: 'Ruim',
-                5: 'Muito Ruim'
-            }
-            
-            esporte_map = {
-                1: 'Pratica',
-                2: 'Não Pratica',
-                9: 'Ignorado'
-            }
-            
-            df_atividade['Avaliacao_Saude'] = df_atividade['Avaliacao_Geral_Saude'].map(avaliacao_map)
-            df_atividade['Pratica_Esporte'] = df_atividade[coluna_esporte].map(esporte_map)
-            
-            # Criar gráfico
-            fig = px.histogram(
-                df_atividade.dropna(),
-                x='Avaliacao_Saude',
-                color='Pratica_Esporte',
-                barmode='group',
-                category_orders={
-                    'Avaliacao_Saude': ['Muito Boa', 'Boa', 'Regular', 'Ruim', 'Muito Ruim'],
-                    'Pratica_Esporte': ['Pratica', 'Não Pratica', 'Ignorado']
-                },
-                color_discrete_map={
-                    'Pratica': '#27ae60',  # Verde
-                    'Não Pratica': '#e74c3c',  # Vermelho
-                    'Ignorado': '#95a5a6'  # Cinza
-                },
-                labels={
-                    'Avaliacao_Saude': 'Autoavaliação de Saúde',
-                    'count': 'Número de Pessoas',
-                    'Pratica_Esporte': 'Prática Esportiva'
-                },
-                height=450
-            )
-            
-            fig.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                legend_title_text='Prática de Esporte',
-                hovermode='x unified'
-            )
-    
-            st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        st.error(f"Erro ao criar gráfico: {str(e)}")
-        st.write("Dados usados:", df_atividade.head() if 'df_atividade' in locals() else "DataFrame não criado")
-    
 
 # Página: Tratamento e Saúde
 elif pagina == "💊 Tratamento e Saúde":
