@@ -404,61 +404,64 @@ elif pagina == "🌎 Panorama Nacional":
             (df_filtrado['Idade_Morador'] <= max_idade)
         ]
     
+    contagem_estados = df_filtrado['Unidade_Federacao'].value_counts().reset_index()
+    contagem_estados.columns = ['Estado', 'Quantidade']
     if sexo_filtro != "Todos":
         df_filtrado = df_filtrado[df_filtrado['Sexo'] == sexo_filtro]
     
-    # Mapa do Brasil
-    st.markdown("### 🗺 Mapa de Distribuição por Estado")
+        # Mapa do Brasil
+        st.markdown("### 🗺 Mapa de Distribuição por Estado")
+      
+    if not contagem_estados.empty:
+        try:
     
-    depressao_por_estado = df_filtrado['Unidade_Federacao'].value_counts().reset_index()
-    depressao_por_estado.columns = ['Estado', 'Quantidade']
-    
-    estado_siglas = {
-        'Rondônia': 'RO', 'Acre': 'AC', 'Amazonas': 'AM', 'Roraima': 'RR',
-        'Pará': 'PA', 'Amapá': 'AP', 'Tocantins': 'TO', 'Maranhão': 'MA',
-        'Piauí': 'PI', 'Ceará': 'CE', 'Rio Grande do Norte': 'RN',
-        'Paraíba': 'PB', 'Pernambuco': 'PE', 'Alagoas': 'AL', 'Sergipe': 'SE',
-        'Bahia': 'BA', 'Minas Gerais': 'MG', 'Espírito Santo': 'ES',
-        'Rio de Janeiro': 'RJ', 'São Paulo': 'SP', 'Paraná': 'PR',
-        'Santa Catarina': 'SC', 'Rio Grande do Sul': 'RS',
-        'Mato Grosso do Sul': 'MS', 'Mato Grosso': 'MT', 'Goiás': 'GO',
-        'Distrito Federal': 'DF'
-    }
-    
-    depressao_por_estado['Sigla'] = depressao_por_estado['Estado'].map(estado_siglas)
-    
-    fig_mapa = px.choropleth(
-        depressao_por_estado,
-        locations='Sigla',
-        locationmode='Brazil',
-        color='Quantidade',
-        scope='south america',
-        color_continuous_scale='Blues',
-        hover_name='Estado',
-        hover_data={'Quantidade': True, 'Sigla': False},
-        title='Casos de Depressão por Estado',
-        height=500
-    )
-    
-    fig_mapa.update_geos(
-        visible=False,
-        resolution=110,
-        showcountries=False,
-        showsubunits=True,
-        subunitcolor='gray'
-    )
-    
-    fig_mapa.update_layout(
-        margin={"r":0,"t":40,"l":0,"b":0},
-        geo=dict(bgcolor='rgba(0,0,0,0)'),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color="#2c3e50")
-    )
-    
-    st.plotly_chart(fig_mapa, use_container_width=True)
-    
-    # Gráficos demográficos
+            fig_mapa = px.choropleth(
+                contagem_estados,
+                geojson="https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson",
+                locations='codigo_ibge',
+                color='Quantidade',
+                hover_name='Estado',
+                hover_data={'Quantidade': True},
+                color_continuous_scale='Blues',
+                scope='south america',
+                height=500,
+                featureidkey="properties.codigo_ibge"
+            )
+            
+            # Configurações CRÍTICAS para evitar mapa preto
+            fig_mapa.update_geos(
+                visible=True,
+                showcountries=False,
+                showsubunits=True,
+                subunitcolor='gray',
+                bgcolor='rgba(0,0,0,0)',  # Fundo transparente
+                lakecolor='#1c1e22'       # Cor de lagos
+            )
+            
+            fig_mapa.update_layout(
+                margin={"r":0,"t":40,"l":0,"b":0},
+                geo=dict(
+                    landcolor='lightgray',  # Cor do território não selecionado
+                    subunitwidth=1
+                ),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            st.plotly_chart(fig_mapa, use_container_width=True)
+            
+            # Mostrar tabela de dados para debug
+            st.write("Dados utilizados no mapa:")
+            st.dataframe(contagem_estados)
+            
+        except Exception as e:
+            st.error(f"Erro ao criar o mapa: {str(e)}")
+            st.write("Dados que tentamos mapear:")
+            st.write(contagem_estados)
+    else:
+        st.warning("Nenhum dado disponível para os estados da região Norte com os filtros atuais.")
+            
+        # Gráficos demográficos
     st.markdown("### 📊 Dados Demográficos")
     
     col_demo1, col_demo2 = st.columns(2)
@@ -528,35 +531,38 @@ elif pagina == "🌎 Panorama Nacional":
         st.plotly_chart(fig_raca, use_container_width=True)
     
     # Top 5 estados
+    # Top 5 estados
     st.markdown("### 🏆 Top 5 Estados com Maior Número de Casos")
     
-    top_estados = depressao_por_estado.sort_values('Quantidade', ascending=False).head(5)
-    
-    fig_top = px.bar(
-        top_estados,
-        x='Estado',
-        y='Quantidade',
-        color='Quantidade',
-        color_continuous_scale='Blues',
-        text='Quantidade',
-        height=400
-    )
-    
-    fig_top.update_traces(
-        textposition='outside',
-        marker=dict(line=dict(color='#ffffff', width=1))
-    )
-    
-    fig_top.update_layout(
-        xaxis_title="Estado",
-        yaxis_title="Número de Casos",
-        coloraxis_showscale=False,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
-    )
-    
-    st.plotly_chart(fig_top, use_container_width=True)
-
+    # Usar contagem_estados que já foi criada anteriormente para o mapa
+    if not contagem_estados.empty:
+        top_estados = contagem_estados.sort_values('Quantidade', ascending=False).head(5)
+        
+        fig_top = px.bar(
+            top_estados,
+            x='Estado',
+            y='Quantidade',
+            color='Quantidade',
+            color_continuous_scale='Blues',
+            text='Quantidade',
+            height=400
+        )
+        
+        fig_top.update_traces(
+            textposition='outside',
+            marker=dict(line=dict(color='#ffffff', width=1))
+        )
+        fig_top.update_layout(
+            xaxis_title="Estado",
+            yaxis_title="Número de Casos",
+            coloraxis_showscale=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig_top, use_container_width=True)
+    else:
+        st.warning("Nenhum dado disponível para mostrar o ranking de estados.")
 # Página: Fatores Associados
 elif pagina == "📊 Fatores Associados":
     st.title("📊 Fatores Associados à Depressão")
@@ -706,38 +712,73 @@ elif pagina == "📊 Fatores Associados":
         st.plotly_chart(fig_ec, use_container_width=True)
     
     with col_fatores2:
-        st.markdown("#### Avaliação Geral de Saúde")
-        avaliacao = df_depressao['Avaliacao_Geral_Saude'].value_counts().reset_index()
-        avaliacao['Avaliacao_Geral_Saude'] = avaliacao['Avaliacao_Geral_Saude'].map({
-            1: 'Muito Boa', 2: 'Boa', 3: 'Regular', 4: 'Ruim', 5: 'Muito Ruim'
-        })
+         st.markdown("### 🏋️ Relação entre Saúde Mental e Prática de Atividade Física")
+    
+    try:
+        # Verificar nomes exatos das colunas no seu DataFrame
+        cols_esporte = [col for col in df_depressao.columns if 'Esporte' in col]
+        st.write(f"Colunas de atividade física disponíveis: {cols_esporte}")  # Debug
         
-        fig_av = px.pie(
-            avaliacao,
-            names='Avaliacao_Geral_Saude',
-            values='count',
-            hole=0.4,
-            color_discrete_sequence=px.colors.sequential.Reds_r
-        )
+        # Usar a coluna disponível (corrigindo o nome)
+        coluna_esporte = 'Frequencia_Esporte_Seman'  # Nome corrigido conforme seu DF
         
-        fig_av.update_traces(
-            textposition='inside',
-            textinfo='percent+label',
-            marker=dict(line=dict(color='#ffffff', width=1))
-        )
-        
-        fig_av.update_layout(
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=-0.2,
-                xanchor="center",
-                x=0.5
+        if coluna_esporte in df_depressao.columns:
+            # Criar DataFrame para análise
+            df_atividade = df_depressao[['Avaliacao_Geral_Saude', coluna_esporte]].copy()
+            
+            # Mapear valores para labels mais amigáveis
+            avaliacao_map = {
+                1: 'Muito Boa',
+                2: 'Boa',
+                3: 'Regular',
+                4: 'Ruim',
+                5: 'Muito Ruim'
+            }
+            
+            esporte_map = {
+                1: 'Pratica',
+                2: 'Não Pratica',
+                9: 'Ignorado'
+            }
+            
+            df_atividade['Avaliacao_Saude'] = df_atividade['Avaliacao_Geral_Saude'].map(avaliacao_map)
+            df_atividade['Pratica_Esporte'] = df_atividade[coluna_esporte].map(esporte_map)
+            
+            # Criar gráfico
+            fig = px.histogram(
+                df_atividade.dropna(),
+                x='Avaliacao_Saude',
+                color='Pratica_Esporte',
+                barmode='group',
+                category_orders={
+                    'Avaliacao_Saude': ['Muito Boa', 'Boa', 'Regular', 'Ruim', 'Muito Ruim'],
+                    'Pratica_Esporte': ['Pratica', 'Não Pratica', 'Ignorado']
+                },
+                color_discrete_map={
+                    'Pratica': '#27ae60',  # Verde
+                    'Não Pratica': '#e74c3c',  # Vermelho
+                    'Ignorado': '#95a5a6'  # Cinza
+                },
+                labels={
+                    'Avaliacao_Saude': 'Autoavaliação de Saúde',
+                    'count': 'Número de Pessoas',
+                    'Pratica_Esporte': 'Prática Esportiva'
+                },
+                height=450
             )
-        )
-        
-        st.plotly_chart(fig_av, use_container_width=True)
+            
+            fig.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                legend_title_text='Prática de Esporte',
+                hovermode='x unified'
+            )
+    
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Erro ao criar gráfico: {str(e)}")
+        st.write("Dados usados:", df_atividade.head() if 'df_atividade' in locals() else "DataFrame não criado")
+    
 
 # Página: Tratamento e Saúde
 elif pagina == "💊 Tratamento e Saúde":
