@@ -8,6 +8,13 @@ from collections import Counter
 # Forçar tema claro e configurar cores padrão
 # Configuração universal para corrigir gráficos brancos
 import plotly.io as pio
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split, GridSearchCV
+from imblearn.pipeline import Pipeline as ImbPipeline
+from imblearn.over_sampling import SMOTE
+from sklearn.tree import DecisionTreeClassifier
+from html import escape
+
 
 
 # Configuração do layout padrão para todos os gráficos
@@ -1243,116 +1250,196 @@ elif pagina == "📝 Teste Pessoal":
     """)
     
     # Carregar modelo (simulado para exemplo)
-    @st.cache_resource
-    def carregar_modelo():
-        # Em uma aplicação real, você carregaria um modelo treinado
-        return None  # Substitua por joblib.load('modelo.pkl')
-    
-    modelo = carregar_modelo()
-    
-    # Formulário
-    with st.form("teste_depressao"):
-        st.markdown("### Nas últimas 2 semanas, com que frequência você...")
+@st.cache_data
+def load_data():
+    try:
+        caminho_arquivo = r"pns2019_IA.csv" 
+        df = pd.read_csv(caminho_arquivo, sep=';', encoding='utf-8')
         
-        col1, col2 = st.columns(2)
+        # Processamento dos dados
+        X = df[["Frequencia_Problemas_Sono", "Frequencia_Problemas_Concentracao", 
+                "Frequencia_Problemas_Interesse", "Frequencia_Problemas_Alimentacao", 
+                "Frequencia_Sentimento_Deprimido", "Frequencia_Sentimento_Fracasso", 
+                "Frequencia_Pensamentos_Suicidio"]]
+        y = df["Diagnostico_Depressao"]
+
+        # Filtros
+        valid_values_y = [1, 2]
+        y = y[y.isin(valid_values_y)]
+        valid_values_x = {col: [1, 2] for col in X.columns}
+        valid_indices_x = X.apply(lambda col: col.isin(valid_values_x[col.name])).all(axis=1)
+        X = X[valid_indices_x]
+        y = y.loc[X.index]
+        X = X.apply(lambda col: col.map({1: 0, 2: 1}))
+
+        return X, y
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {str(e)}")
+        st.stop()
+
+# Função para treinar o modelo
+@st.cache_resource
+def train_model(X, y):
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
-        with col1:
-            sono = st.radio("Teve problemas para dormir?", 
-                          ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
-                          index=0)
+        pipeline = ImbPipeline([
+            ('smote', SMOTE(random_state=42)),
+            ('classifier', DecisionTreeClassifier(random_state=42))
+        ])
+
+        param_grid = {
+            'classifier__max_depth': [3, 4, 5, 6, None],
+            'classifier__min_samples_split': [2, 5, 10],
+            'classifier__min_samples_leaf': [1, 2, 4],
+            'classifier__criterion': ['gini', 'entropy']
+        }
+
+        grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='roc_auc', n_jobs=-1)
+        grid_search.fit(X_train, y_train)
+        
+        final_model = grid_search.best_estimator_
+        y_pred = final_model.predict(X_test)
+        acuracia = accuracy_score(y_test, y_pred)
+        
+        return final_model, acuracia, grid_search.best_params_
+    except Exception as e:
+        st.error(f"Erro ao treinar modelo: {str(e)}")
+        st.stop()
+
+# Interface principal
+def main():
+    st.title("Análise de Depressão - PNS 2019")
+    
+    try:
+        # Carregar dados e modelo
+        X, y = load_data()
+        modelo, acuracia, best_params = train_model(X, y)
+        
+        # Formulário de avaliação
+        with st.form("teste_depressao"):
+            st.markdown("### Nas últimas 2 semanas, com que frequência você...")
             
-            interesse = st.radio("Perdeu interesse pelas coisas?", 
-                               ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
-                               index=0)
+            col1, col2 = st.columns(2)
             
-            alimentacao = st.radio("Teve mudanças no apetite?", 
-                                 ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
-                                 index=0)
-            
-            cansaco = st.radio("Sentiu-se cansado sem energia?", 
+            with col1:
+                sono = st.radio("Teve problemas para dormir?", 
                               ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                               index=0)
-        
-        with col2:
-            concentracao = st.radio("Teve dificuldade de concentração?", 
+                
+                interesse = st.radio("Perdeu interesse pelas coisas?", 
+                                   ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
+                                   index=0)
+                
+                alimentacao = st.radio("Teve mudanças no apetite?", 
+                                     ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
+                                     index=0)
+                
+                cansaco = st.radio("Sentiu-se cansado sem energia?", 
                                   ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
                                   index=0)
             
-            deprimido = st.radio("Sentiu-se deprimido ou sem perspectiva?", 
-                               ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
-                               index=0)
+            with col2:
+                concentracao = st.radio("Teve dificuldade de concentração?", 
+                                      ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
+                                      index=0)
+                
+                deprimido = st.radio("Sentiu-se deprimido ou sem perspectiva?", 
+                                   ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
+                                   index=0)
+                
+                fracasso = st.radio("Sentiu-se um fracasso?", 
+                                  ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
+                                  index=0)
+                
+                suicidio = st.radio("Teve pensamentos sobre morte?", 
+                                  ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
+                                  index=0)
             
-            fracasso = st.radio("Sentiu-se um fracasso?", 
-                              ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
-                              index=0)
+            submitted = st.form_submit_button("Avaliar", type="primary")
             
-            suicidio = st.radio("Teve pensamentos sobre morte?", 
-                              ["Nenhum dia", "Alguns dias", "Com Frequencia", "Quase Sempre"], 
-                              index=0)
+            if submitted:
+                # Simulação de pontuação
+                respostas = [sono, interesse, alimentacao, cansaco, concentracao, deprimido, fracasso, suicidio]
+                pontos = sum([1 for r in respostas if r != "Nenhum dia"])
+                
+                # Resultados usando markdown com HTML seguro
+                if pontos >= 5:
+                    st.markdown("""
+                    <div style="background: #fde8e8; padding: 20px; border-radius: 12px; border-left: 5px solid #e74c3c;">
+                        <h3 style="color: #e74c3c;">🔴 Resultado: Indícios significativos de depressão</h3>
+                        <p>Recomendamos que você procure ajuda profissional. Você não está sozinho(a) e a ajuda pode fazer diferença.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif pontos >= 2:
+                    st.markdown("""
+                    <div style="background: #fff4e5; padding: 20px; border-radius: 12px; border-left: 5px solid #f39c12;">
+                        <h3 style="color: #f39c12;">🟡 Resultado: Alguns sintomas presentes</h3>
+                        <p>Fique atento(a) aos seus sentimentos. Se os sintomas persistirem, considere conversar com um profissional.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style="background: #e8f8f5; padding: 20px; border-radius: 12px; border-left: 5px solid #2ecc71;">
+                        <h3 style="color: #2ecc71;">🟢 Resultado: Poucos ou nenhum sintoma</h3>
+                        <p>Continue cuidando da sua saúde mental. Caso note qualquer mudança, não hesite em buscar apoio.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                st.markdown("### 📞 Recursos de Apoio")
+                
+                recursos = st.columns(3)
+                
+                with recursos[0]:
+                    st.markdown("""
+                    <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <h4 style="color: #3498db;">CVV - Centro de Valorização da Vida</h4>
+                        <p>Ligue 188 (24 horas, gratuito)</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with recursos[1]:
+                    st.markdown("""
+                    <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <h4 style="color: #3498db;">CAPS - Centros de Atenção Psicossocial</h4>
+                        <p>Procure a unidade mais próxima</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with recursos[2]:
+                    st.markdown("""
+                    <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <h4 style="color: #3498db;">SUS - Unidades Básicas de Saúde</h4>
+                        <p>Agende uma consulta na UBS mais próxima</p>
+                    </div>
+                    """, unsafe_allow_html=True)
         
-        submitted = st.form_submit_button("Avaliar", type="primary")
-        
-        if submitted:
-            # Simulação de pontuação (em um caso real, usar o modelo)
-            respostas = [sono, interesse, alimentacao, cansaco, concentracao, deprimido, fracasso, suicidio]
-            pontos = sum([1 for r in respostas if r != "Nenhum dia"])
+        # Seção de informações do modelo
+        with st.expander("ℹ️ Sobre o Modelo"):
+            st.markdown(f"""
+            - **Acurácia do modelo**: {acuracia:.2%}
+            - **Melhores parâmetros**: {best_params}
+            - **Variáveis utilizadas**: Problemas de sono, concentração, interesse, alimentação, sentimentos depressivos, fracasso e pensamentos suicidas
+            """)
             
-            if pontos >= 5:
-                st.error("""
-                <div style="background: #fde8e8; padding: 20px; border-radius: 12px; border-left: 5px solid #e74c3c;">
-                    <h3 style="color: #e74c3c;">🔴 Resultado: Indícios significativos de depressão</h3>
-                    <p>Recomendamos que você procure ajuda profissional. Você não está sozinho(a) e a ajuda pode fazer diferença.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            elif pontos >= 2:
-                st.warning("""
-                <div style="background: #fff4e5; padding: 20px; border-radius: 12px; border-left: 5px solid #f39c12;">
-                    <h3 style="color: #f39c12;">🟡 Resultado: Alguns sintomas presentes</h3>
-                    <p>Fique atento(a) aos seus sentimentos. Se os sintomas persistirem, considere conversar com um profissional.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.success("""
-                <div style="background: #e8f8f5; padding: 20px; border-radius: 12px; border-left: 5px solid #2ecc71;">
-                    <h3 style="color: #2ecc71;">🟢 Resultado: Poucos ou nenhum sintoma</h3>
-                    <p>Continue cuidando da sua saúde mental. Praticar exercícios, manter rotinas saudáveis e conexões sociais são importantes.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.markdown("### 📞 Recursos de Apoio")
-            
-            recursos = st.columns(3)
-            
-            with recursos[0]:
-                st.markdown("""
-                <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                    <h4 style="color: #3498db;">CVV - Centro de Valorização da Vida</h4>
-                    <p>Ligue 188 (24 horas, gratuito)</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with recursos[1]:
-                st.markdown("""
-                <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                    <h4 style="color: #3498db;">CAPS - Centros de Atenção Psicossocial</h4>
-                    <p>Procure a unidade mais próxima</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with recursos[2]:
-                st.markdown("""
-                <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                    <h4 style="color: #3498db;">SUS - Unidades Básicas de Saúde</h4>
-                    <p>Agende uma consulta na UBS mais próxima</p>
-                </div>
-                """, unsafe_allow_html=True)
+            st.markdown("""
+            **Observação**: Este questionário não substitui uma avaliação profissional. 
+            Os resultados são apenas indicativos e baseados em modelos estatísticos.
+            """)
+    
+    except Exception as e:
+        st.error(f"Ocorreu um erro no sistema: {safe_html(str(e))}")
+        st.stop()
+    
+    # Rodapé
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #7f8c8d; font-size: 0.9em; padding: 20px;">
+        <p>Dados da Pesquisa Nacional de Saúde (PNS) 2019 - IBGE</p>
+        <p>Dashboard desenvolvido para análise de saúde mental | Atualizado em 2023</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Rodapé
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #7f8c8d; font-size: 0.9em; padding: 20px;">
-    <p>Dados da Pesquisa Nacional de Saúde (PNS) 2019 - IBGE</p>
-    <p>Dashboard desenvolvido para análise de saúde mental | Atualizado em 2023</p>
-</div>
-""", unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()
