@@ -17,6 +17,7 @@ from html import escape
 
 
 
+
 # Configuração do layout padrão para todos os gráficos
 plotly_layout = {
     'paper_bgcolor': '#1c1e22',
@@ -261,7 +262,7 @@ if pagina == "🏠 Introdução":
     <div style="background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%); 
                 padding: 30px; 
                 border-radius: 12px; 
-                color: white;
+                color: black;
                 margin-bottom: 30px;">
         <h1 style="color: #ffffff; margin: 0;">🧠 Dashboard: Saúde Mental no Brasil</h1>
         <p style="font-size: 1.1em;">Análise dos dados da PNS 2019 sobre depressão na população brasileira</p>
@@ -980,22 +981,7 @@ elif pagina == "💊 Tratamento e Saúde":
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        # Gráfico 1: Número de Pessoas por Frequência
-        st.markdown("### Número de Pessoas")
-        freq_data = {
-            "Frequência": ["Regularmente", "Só quando precisa", "Nunca vai"],
-            "Quantidade": [2000, 1000, 500]  # Substitua com seus dados reais
-        }
-        df_freq = pd.DataFrame(freq_data)
-        
-        fig_freq = px.bar(
-            df_freq,
-            x="Frequência",
-            y="Quantidade",
-            color="Frequência",
-            text="Quantidade"
-        )
-        st.plotly_chart(fig_freq, use_container_width=True)
+       
 
         # Gráfico 2: Motivos para não visitar regularmente
         st.markdown("### Motivos para Não Visitar")
@@ -1145,47 +1131,7 @@ elif pagina == "💊 Tratamento e Saúde":
     st.plotly_chart(fig_ur, use_container_width=True)
     
     with col2:
-        st.markdown("### 🏥 Frequência de Visitas Médicas")
         
-        # 1. Primeiro verifique o nome real da coluna
-        visitas = df_depressao['Frequencia_Visita_Medico_Depressao'].value_counts().reset_index()
-        print("Colunas no DataFrame visitas:", visitas.columns.tolist())  # Isso mostrará os nomes reais
-        
-        # 2. Use o nome correto da coluna (substitua 'nome_da_coluna' pelo que aparecer no print)
-        nome_da_coluna = visitas.columns[0]  # Pega automaticamente o nome da primeira coluna
-        
-        visitas['Frequencia'] = visitas[nome_da_coluna].map({
-            1: 'Regularmente', 
-            2: 'Só quando precisa', 
-            3: 'Nunca vai',
-            9: 'Ignorado'
-        }).fillna('Não informado')
-        
-        # 3. Atualize o gráfico para usar a nova coluna
-        fig_vis = px.bar(
-            visitas,
-            x='Frequencia',  # Agora usando a coluna renomeada
-            y='count',
-            color='Frequencia',
-            color_discrete_sequence=px.colors.sequential.Blues_r,
-            text='count',
-            title="Frequência de Visitas ao Médico"
-        )
-        
-        fig_vis.update_traces(
-            marker_line=dict(color='#ffffff', width=1),
-            textposition='outside'
-        )
-        
-        fig_vis.update_layout(
-            showlegend=False,
-            xaxis_title="Frequência",
-            yaxis_title="Número de Pessoas",
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
-        )
-        
-        st.plotly_chart(fig_vis, use_container_width=True)
         
         st.markdown("### ❓ Motivos para Não Visitar Regularmente")
         motivos = df_depressao['Motivo_Nao_Visitar_Medico_Depressao'].value_counts().reset_index()
@@ -1228,6 +1174,7 @@ elif pagina == "💊 Tratamento e Saúde":
         st.plotly_chart(fig_mot, use_container_width=True)
 
 # Página: Teste Pessoal
+# Página: Teste Pessoal
 elif pagina == "📝 Teste Pessoal":
     st.title("📝 Avaliação de Saúde Mental")
     
@@ -1250,67 +1197,63 @@ elif pagina == "📝 Teste Pessoal":
     """)
     
     # Carregar modelo (simulado para exemplo)
-@st.cache_data
-def load_data():
-    try:
-        caminho_arquivo = r"pns2019_IA.csv" 
-        df = pd.read_csv(caminho_arquivo, sep=';', encoding='utf-8')
-        
-        # Processamento dos dados
-        X = df[["Frequencia_Problemas_Sono", "Frequencia_Problemas_Concentracao", 
-                "Frequencia_Problemas_Interesse", "Frequencia_Problemas_Alimentacao", 
-                "Frequencia_Sentimento_Deprimido", "Frequencia_Sentimento_Fracasso", 
-                "Frequencia_Pensamentos_Suicidio"]]
-        y = df["Diagnostico_Depressao"]
+    @st.cache_data
+    def load_data():
+        try:
+            caminho_arquivo = r"pns2019_IA.csv" 
+            df = pd.read_csv(caminho_arquivo, sep=';', encoding='utf-8')
+            
+            # Processamento dos dados
+            X = df[["Frequencia_Problemas_Sono", "Frequencia_Problemas_Concentracao", 
+                    "Frequencia_Problemas_Interesse", "Frequencia_Problemas_Alimentacao", 
+                    "Frequencia_Sentimento_Deprimido", "Frequencia_Sentimento_Fracasso", 
+                    "Frequencia_Pensamentos_Suicidio"]]
+            y = df["Diagnostico_Depressao"]
 
-        # Filtros
-        valid_values_y = [1, 2]
-        y = y[y.isin(valid_values_y)]
-        valid_values_x = {col: [1, 2] for col in X.columns}
-        valid_indices_x = X.apply(lambda col: col.isin(valid_values_x[col.name])).all(axis=1)
-        X = X[valid_indices_x]
-        y = y.loc[X.index]
-        X = X.apply(lambda col: col.map({1: 0, 2: 1}))
+            # Filtros
+            valid_values_y = [1, 2]
+            y = y[y.isin(valid_values_y)]
+            valid_values_x = {col: [1, 2] for col in X.columns}
+            valid_indices_x = X.apply(lambda col: col.isin(valid_values_x[col.name])).all(axis=1)
+            X = X[valid_indices_x]
+            y = y.loc[X.index]
+            X = X.apply(lambda col: col.map({1: 0, 2: 1}))
 
-        return X, y
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {str(e)}")
-        st.stop()
+            return X, y
+        except Exception as e:
+            st.error(f"Erro ao carregar dados: {str(e)}")
+            st.stop()
 
-# Função para treinar o modelo
-@st.cache_resource
-def train_model(X, y):
-    try:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        
-        pipeline = ImbPipeline([
-            ('smote', SMOTE(random_state=42)),
-            ('classifier', DecisionTreeClassifier(random_state=42))
-        ])
+    # Função para treinar o modelo
+    @st.cache_resource
+    def train_model(X, y):
+        try:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            
+            pipeline = ImbPipeline([
+                ('smote', SMOTE(random_state=42)),
+                ('classifier', DecisionTreeClassifier(random_state=42))
+            ])
 
-        param_grid = {
-            'classifier__max_depth': [3, 4, 5, 6, None],
-            'classifier__min_samples_split': [2, 5, 10],
-            'classifier__min_samples_leaf': [1, 2, 4],
-            'classifier__criterion': ['gini', 'entropy']
-        }
+            param_grid = {
+                'classifier__max_depth': [3, 4, 5, 6, None],
+                'classifier__min_samples_split': [2, 5, 10],
+                'classifier__min_samples_leaf': [1, 2, 4],
+                'classifier__criterion': ['gini', 'entropy']
+            }
 
-        grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='roc_auc', n_jobs=-1)
-        grid_search.fit(X_train, y_train)
-        
-        final_model = grid_search.best_estimator_
-        y_pred = final_model.predict(X_test)
-        acuracia = accuracy_score(y_test, y_pred)
-        
-        return final_model, acuracia, grid_search.best_params_
-    except Exception as e:
-        st.error(f"Erro ao treinar modelo: {str(e)}")
-        st.stop()
+            grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='roc_auc', n_jobs=-1)
+            grid_search.fit(X_train, y_train)
+            
+            final_model = grid_search.best_estimator_
+            y_pred = final_model.predict(X_test)
+            acuracia = accuracy_score(y_test, y_pred)
+            
+            return final_model, acuracia, grid_search.best_params_
+        except Exception as e:
+            st.error(f"Erro ao treinar modelo: {str(e)}")
+            st.stop()
 
-# Interface principal
-def main():
-    st.title("Análise de Depressão - PNS 2019")
-    
     try:
         # Carregar dados e modelo
         X, y = load_data()
@@ -1393,7 +1336,7 @@ def main():
                 
                 with recursos[0]:
                     st.markdown("""
-                    <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <div style="background: black; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                         <h4 style="color: #3498db;">CVV - Centro de Valorização da Vida</h4>
                         <p>Ligue 188 (24 horas, gratuito)</p>
                     </div>
@@ -1401,7 +1344,7 @@ def main():
                 
                 with recursos[1]:
                     st.markdown("""
-                    <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <div style="background: black; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                         <h4 style="color: #3498db;">CAPS - Centros de Atenção Psicossocial</h4>
                         <p>Procure a unidade mais próxima</p>
                     </div>
@@ -1409,7 +1352,7 @@ def main():
                 
                 with recursos[2]:
                     st.markdown("""
-                    <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <div style="background: black; padding: 15px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                         <h4 style="color: #3498db;">SUS - Unidades Básicas de Saúde</h4>
                         <p>Agende uma consulta na UBS mais próxima</p>
                     </div>
@@ -1429,8 +1372,7 @@ def main():
             """)
     
     except Exception as e:
-        st.error(f"Ocorreu um erro no sistema: {safe_html(str(e))}")
-        st.stop()
+        st.error(f"Ocorreu um erro no sistema: {escape(str(e))}")
     
     # Rodapé
     st.markdown("---")
@@ -1440,6 +1382,3 @@ def main():
         <p>Dashboard desenvolvido para análise de saúde mental | Atualizado em 2023</p>
     </div>
     """, unsafe_allow_html=True)
-
-if __name__ == "__main__":
-    main()
