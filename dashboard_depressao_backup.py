@@ -531,7 +531,7 @@ elif pagina == "📊 Fatores Associados":
     
     # Horas de trabalho
     st.markdown("### ⏱ Horas de Trabalho Semanal")
-    
+
     col_trab1, col_trab2 = st.columns([2, 1])
     
     with col_trab1:
@@ -781,108 +781,176 @@ elif pagina == "📊 Fatores Associados":
         )
         st.plotly_chart(fig_atividades, use_container_width=True)
     
-    with col_social2:
-        st.markdown("### 🚨 Experiências de Violência")
-        
-        # Análise de violência verbal
-        violencia_verbal = df_depressao['V00201'].value_counts(normalize=True).mul(100).reset_index()
-        violencia_verbal.columns = ['Resposta', 'Porcentagem']
-        violencia_verbal['Resposta'] = violencia_verbal['Resposta'].map({
-            1: 'Sim',
-            2: 'Não'
-        })
-        
-        fig_violencia_verbal = px.bar(
-            violencia_verbal,
-            x='Resposta',
-            y='Porcentagem',
-            color='Resposta',
-            title='% que sofreu violência verbal (últimos 12 meses)',
-            text='Porcentagem',
-            color_discrete_map={'Sim': '#e74c3c', 'Não': '#2ecc71'}
-        )
-        fig_violencia_verbal.update_traces(texttemplate='%{y:.1f}%')
-        st.plotly_chart(fig_violencia_verbal, use_container_width=True)
-        
-        # Análise de violência física
-        violencia_fisica = df_depressao['V01401'].value_counts(normalize=True).mul(100).reset_index()
-        violencia_fisica.columns = ['Resposta', 'Porcentagem']
-        violencia_fisica['Resposta'] = violencia_fisica['Resposta'].map({
-            1: 'Sim',
-            2: 'Não'
-        })
-        
-        fig_violencia_fisica = px.bar(
-            violencia_fisica,
-            x='Resposta',
-            y='Porcentagem',
-            color='Resposta',
-            title='% que sofreu violência física (últimos 12 meses)',
-            text='Porcentagem',
-            color_discrete_map={'Sim': '#e74c3c', 'Não': '#2ecc71'}
-        )
-        fig_violencia_fisica.update_traces(texttemplate='%{y:.1f}%')
-        st.plotly_chart(fig_violencia_fisica, use_container_width=True)
-        
-        # Relação entre violência e depressão
-        st.markdown("#### 📌 Principais Agressores")
-        agressores = df_depressao[df_depressao['V01401'] == 1]['V018'].value_counts().reset_index()
-        agressores.columns = ['Agressor', 'Quantidade']
-        agressores['Agressor'] = agressores['Agressor'].map({
-            1: 'Cônjuge',
-            2: 'Ex-cônjuge',
-            3: 'Namorado(a)',
-            4: 'Pais',
-            5: 'Filhos',
-            6: 'Irmãos',
-            7: 'Outros parentes',
-            8: 'Amigos/vizinhos',
-            9: 'Empregados',
-            10: 'Patrão',
-            11: 'Desconhecido',
-            12: 'Policial',
-            13: 'Outros'
-        })
-        
-        fig_agressores = px.bar(
-            agressores.head(5),
-            x='Quantidade',
-            y='Agressor',
-            orientation='h',
-            title='Principais Agressores (Violência Física)',
-            color='Quantidade',
-            color_continuous_scale='Reds'
-        )
-        st.plotly_chart(fig_agressores, use_container_width=True)
-        st.markdown("---")
+    with col_social1:
+   
     
-    col_info1, col_info2 = st.columns(2)
-    
-    with col_info1:
-        st.markdown("""
-        <div style="background: #1c1e22; padding: 20px; border-radius: 12px; border-left: 4px solid #3498db;">
-            <h3 style="color: #3498db;">📌 Fatores de Risco</h3>
-            <p>Pessoas com depressão relatam:</p>
-            <ul>
-                <li>2x mais chances de sofrer violência verbal</li>
-                <li>3x mais chances de sofrer violência física</li>
-                <li>40% menor rede de apoio social</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_info2:
-        st.markdown("""
-        <div style="background: #1c1e22; padding: 20px; border-radius: 12px; border-left: 4px solid #e74c3c;">
-            <h3 style="color: #e74c3c;">🛡 Fatores de Proteção</h3>
-            <p>Pessoas com boa rede de apoio:</p>
-            <ul>
-                <li>30% menos sintomas graves</li>
-                <li>2x mais adesão ao tratamento</li>
-                <li>50% menos pensamentos suicidas</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    # 1. Primeiro verifique quais colunas de violência existem no DataFrame
+        possiveis_colunas_violencia = [
+            'Violencia_Verbal', 
+            'Violencia_Fisica_Tapa',
+            'Violencia_Psicologica'
+        ]
+        
+        colunas_violencia_disponiveis = [col for col in possiveis_colunas_violencia if col in df.columns]
+        
+        if not colunas_violencia_disponiveis:
+            st.warning("Nenhum dado de violência disponível para análise.")
+        else:
+            st.markdown("### 📉 Prevalência de Depressão por Exposição à Violência")
+            
+            # Criar lista de sintomas para análise
+            possiveis_sintomas = {
+                'Frequencia_Sentimento_Deprimido': 'Sentimentos Depressivos',
+                'Frequencia_Problemas_Sono': 'Problemas de Sono',
+                'Frequencia_Pensamentos_Suicidio': 'Pensamentos Suicidas'
+            }
+            
+            # Filtrar apenas sintomas que existem no DataFrame
+            sintomas_disponiveis = {k: v for k, v in possiveis_sintomas.items() if k in df.columns}
+            
+            if not sintomas_disponiveis:
+                st.warning("Nenhum dado de sintomas disponível para análise.")
+            else:
+                # Análise para cada tipo de violência disponível
+                for violencia_col in colunas_violencia_disponiveis:
+                    # Obter nome amigável para o tipo de violência
+                    violencia_nome = {
+                        'Violencia_Verbal': 'Violência Verbal',
+                        'Violencia_Fisica_Tapa': 'Violência Física',
+                        'Violencia_Psicologica': 'Violência Psicológica'
+                    }.get(violencia_col, violencia_col)
+                    
+                    st.markdown(f"#### {violencia_nome}")
+                    
+                    try:
+                        # Calcular estatísticas
+                        stats = df.groupby(violencia_col)['Diagnostico_Depressao']\
+                                .value_counts(normalize=True).unstack() * 100
+                        
+                        # Preparar dados para visualização
+                        plot_data = []
+                        for grupo in stats.index:
+                            if grupo in [1, 2]:  # Valores válidos (1=Sim, 2=Não)
+                                plot_data.append({
+                                    'Grupo': 'Sofreu' if grupo == 1 else 'Não sofreu',
+                                    'Porcentagem': stats.loc[grupo, 'Sim'] if 'Sim' in stats.columns else 0,
+                                    'Tipo': violencia_nome
+                                })
+                        
+                        if plot_data:
+                            df_plot = pd.DataFrame(plot_data)
+                            
+                            # Criar gráfico
+                            fig = px.bar(
+                                df_plot,
+                                x='Tipo',
+                                y='Porcentagem',
+                                color='Grupo',
+                                barmode='group',
+                                text='Porcentagem',
+                                labels={'Porcentagem': '% com Depressão'},
+                                color_discrete_map={'Sofreu': '#e74c3c', 'Não sofreu': '#3498db'},
+                                height=400
+                            )
+                            
+                            fig.update_traces(
+                                texttemplate='%{y:.1f}%',
+                                textposition='outside'
+                            )
+                            
+                            fig.update_layout(
+                                xaxis_title="Tipo de Violência",
+                                yaxis_title="% com Diagnóstico de Depressão",
+                                showlegend=True,
+                                legend_title=""
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Calcular razão de chances
+                            if len(plot_data) == 2:
+                                risco_relativo = plot_data[0]['Porcentagem'] / plot_data[1]['Porcentagem']
+                                st.info(
+                                    f"Pessoas que sofreram {violencia_nome.lower()} têm "
+                                    f"{risco_relativo:.1f}x mais chances de diagnóstico de depressão."
+                                )
+                    
+                    except Exception as e:
+                        st.error(f"Erro ao analisar {violencia_nome}: {str(e)}")
+            
+            # Análise de sintomas apenas se houver dados
+            if sintomas_disponiveis:
+                st.markdown("### 📈 Gravidade dos Sintomas por Exposição à Violência")
+                
+                # Usar a primeira coluna de violência disponível como referência
+                violencia_ref = colunas_violencia_disponiveis[0]
+                
+                try:
+                    # Preparar dados
+                    symptom_data = []
+                    for sintoma_col, sintoma_nome in sintomas_disponiveis.items():
+                        media_sim = df[df[violencia_ref] == 1][sintoma_col].mean()
+                        media_nao = df[df[violencia_ref] == 2][sintoma_col].mean()
+                        
+                        symptom_data.append({
+                            'Sintoma': sintoma_nome,
+                            'Com Violência': media_sim,
+                            'Sem Violência': media_nao
+                        })
+                    
+                    df_symptoms = pd.DataFrame(symptom_data).melt(
+                        id_vars='Sintoma', 
+                        var_name='Exposição', 
+                        value_name='Intensidade'
+                    )
+                    
+                    # Criar gráfico
+                    fig_sint = px.bar(
+                        df_symptoms,
+                        x='Sintoma',
+                        y='Intensidade',
+                        color='Exposição',
+                        barmode='group',
+                        color_discrete_map={'Com Violência': '#e74c3c', 'Sem Violência': '#3498db'},
+                        labels={'Intensidade': 'Intensidade Média (1-4)'}
+                    )
+                    
+                    fig_sint.update_layout(
+                        xaxis_title="Sintoma",
+                        yaxis_title="Intensidade Média",
+                        legend_title="Exposição à Violência"
+                    )
+                    
+                    st.plotly_chart(fig_sint, use_container_width=True)
+                    
+                    # Calcular diferença percentual média
+                    diff = (df_symptoms[df_symptoms['Exposição'] == 'Com Violência']['Intensidade'].mean() /
+                        df_symptoms[df_symptoms['Exposição'] == 'Sem Violência']['Intensidade'].mean() - 1) * 100
+                    
+                    st.markdown(
+                        f"<div style='background:#1c1e22;padding:15px;border-radius:8px;margin:15px 0;'>"
+                        f"🔍 <strong>Análise:</strong> Sintomas são {diff:.1f}% mais intensos em média "
+                        f"entre quem sofreu violência.</div>",
+                        unsafe_allow_html=True
+                    )
+                
+                except Exception as e:
+                    st.error(f"Erro na análise de sintomas: {str(e)}")
+        
+    # Recursos e ajuda
+    st.markdown("---")
+    st.markdown("""
+    <div style="background: #1c1e22; padding: 20px; border-radius: 12px; border-left: 4px solid #e74c3c;">
+        <h3 style="color: #e74c3c;">🛡 Onde Buscar Ajuda</h3>
+        <p>Se você ou alguém que você conhece está em situação de violência:</p>
+        <ul>
+            <li><strong>Disque 180</strong> - Central de Atendimento à Mulher</li>
+            <li><strong>Disque 100</strong> - Direitos Humanos</li>
+            <li><strong>Centros de Referência de Assistência Social (CRAS)</strong> - Atendimento psicossocial</li>
+            <li><strong>CAPS</strong> - Centros de Atenção Psicossocial</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Página: Tratamento e Saúde
 elif pagina == "💊 Tratamento e Saúde":
@@ -900,9 +968,79 @@ elif pagina == "💊 Tratamento e Saúde":
     </div>
     """, unsafe_allow_html=True)
     
-    col_trat1, col_trat2 = st.columns(2)
+     
+    # Layout em colunas (1:2 ratio)
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        # Gráfico 1: Número de Pessoas por Frequência
+        st.markdown("### Número de Pessoas")
+        freq_data = {
+            "Frequência": ["Regularmente", "Só quando precisa", "Nunca vai"],
+            "Quantidade": [2000, 1000, 500]  # Substitua com seus dados reais
+        }
+        df_freq = pd.DataFrame(freq_data)
+        
+        fig_freq = px.bar(
+            df_freq,
+            x="Frequência",
+            y="Quantidade",
+            color="Frequência",
+            text="Quantidade"
+        )
+        st.plotly_chart(fig_freq, use_container_width=True)
+
+        # Gráfico 2: Motivos para não visitar regularmente
+        st.markdown("### Motivos para Não Visitar")
+        motivos_data = {
+            "Motivo": ["Dificuldade financeira", "Tempo de espera", "Outro"],
+            "Porcentagem": [45, 30, 25]  # Substitua com seus dados reais
+        }
+        df_motivos = pd.DataFrame(motivos_data)
+        
+        fig_motivos = px.pie(
+            df_motivos,
+            values="Porcentagem",
+            names="Motivo",
+            hole=0.4
+        )
+        st.plotly_chart(fig_motivos, use_container_width=True)
+
+    with col2:
+        # Gráfico principal: Uso de Medicamentos
+        st.markdown("### 💊 Uso de Medicamentos")
+        medicamento_data = {
+            "Tipo": ["Usa regularmente", "Usa às vezes", "Não usa"],
+            "Porcentagem": [60, 25, 15]  # Substitua com seus dados reais
+        }
+        df_med = pd.DataFrame(medicamento_data)
+        
+        fig_med = px.bar(
+            df_med,
+            x="Tipo",
+            y="Porcentagem",
+            color="Tipo",
+            text="Porcentagem"
+        )
+        st.plotly_chart(fig_med, use_container_width=True)
+
+        # Gráfico secundário: Idade do Primeiro Diagnóstico
+        st.markdown("### 🕒 Idade do Primeiro Diagnóstico")
+        idade_data = {
+            "Faixa Etária": ["<18", "18-25", "26-35", "36-45", "46+"],
+            "Pacientes": [15, 30, 25, 20, 10]  # Substitua com seus dados reais
+        }
+        df_idade = pd.DataFrame(idade_data)
+        
+        fig_idade = px.line(
+            df_idade,
+            x="Faixa Etária",
+            y="Pacientes",
+            markers=True
+        )
+        st.plotly_chart(fig_idade, use_container_width=True)
     
-    with col_trat1:
+    with col1:
         st.markdown("### 💊 Uso de Medicamentos")
         medicamento = df_depressao['Medicamento_Depressao'].value_counts().reset_index()
         medicamento.columns = ['index', 'count']  # Renomeando as colunas para garantir consistência
@@ -930,7 +1068,7 @@ elif pagina == "💊 Tratamento e Saúde":
         
         st.plotly_chart(fig_med, use_container_width=True)
         
-    with col_trat2:
+    with col1:
         st.markdown("### 🏥 Frequência de Visitas Médicas")
         visitas = df_depressao['Frequencia_Visita_Medico_Depressao'].value_counts().reset_index()
         visitas.columns = ['index', 'count']
@@ -999,7 +1137,7 @@ elif pagina == "💊 Tratamento e Saúde":
     
     st.plotly_chart(fig_ur, use_container_width=True)
     
-    with col_trat2:
+    with col2:
         st.markdown("### 🏥 Frequência de Visitas Médicas")
         
         # 1. Primeiro verifique o nome real da coluna
